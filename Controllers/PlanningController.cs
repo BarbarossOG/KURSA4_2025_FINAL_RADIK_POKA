@@ -37,6 +37,98 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
         #endregion
 
+
+        [HttpPost("create-work-schedule")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CreateWorkSchedule(
+        [FromQuery] int objectId,
+        [FromQuery] int? chapterId,
+        [FromQuery] string? chapterName,
+        [FromQuery] int? chapterNumber,
+        [FromQuery] int? subchapterId,
+        [FromQuery] string? subchapterName,
+        [FromQuery] int? subchapterNumber,
+        [FromQuery] string workName,
+        [FromQuery] int workNumber,
+        [FromQuery] string workEI,
+        [FromQuery] DateTime workDate,
+        [FromQuery] int workValue)
+        {
+            try
+            {
+                // Проверка обязательных полей при создании новых сущностей
+                if (!chapterId.HasValue && (string.IsNullOrEmpty(chapterName) || !chapterNumber.HasValue))
+                    return BadRequest("Для нового раздела необходимо указать chapterName и chapterNumber");
+
+                if (!subchapterId.HasValue && (string.IsNullOrEmpty(subchapterName) || !subchapterNumber.HasValue))
+                    return BadRequest("Для нового подраздела необходимо указать subchapterName и subchapterNumber");
+
+                var result = await _service.CreateWorkScheduleAsync(
+                    objectId,
+                    chapterId,
+                    chapterName,
+                    chapterNumber,
+                    subchapterId,
+                    subchapterName,
+                    subchapterNumber,
+                    workName,
+                    workNumber,
+                    workEI,
+                    workDate,
+                    workValue);
+
+                return result
+                    ? Ok("График работ успешно создан")
+                    : BadRequest("Не удалось создать график работ");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при создании графика работ: {ex.Message}");
+            }
+        }
+
+        // Получение плана-графика по ID объекта
+        [HttpGet("work-schedule")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetWorkScheduleByObjectId([FromQuery] int objectId)
+        {
+            try
+            {
+                var result = await _service.GetWorkScheduleByObjectIdAsync(objectId);
+
+                if (result is { } && result.GetType().GetProperty("Message") == null)
+                    return Ok(result);
+
+                return NotFound(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при получении плана-графика: {ex.Message}");
+            }
+        }
+
+        // Удаление плана-графика по ID объекта
+        [HttpDelete("work-schedule")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> DeleteWorkScheduleByObjectId([FromQuery] int objectId)
+        {
+            try
+            {
+                var result = await _service.DeleteWorkScheduleByObjectIdAsync(objectId);
+
+                return result
+                    ? Ok($"План-график для объекта {objectId} успешно удалён")
+                    : BadRequest("Не удалось удалить план-график (возможно, редактирование заблокировано)");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при удалении плана-графика: {ex.Message}");
+            }
+        }
+
         #region Работа с разделами
         [HttpGet("chapters")]
         public async Task<ActionResult<IEnumerable<Chapter>>> GetAllChapters()

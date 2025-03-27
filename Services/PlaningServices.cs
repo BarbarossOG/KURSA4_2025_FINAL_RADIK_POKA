@@ -20,6 +20,219 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public bool IsLocked() => _isLocked;
         #endregion
 
+        public async Task<bool> CreateWorkScheduleAsync(
+        int objectId,
+        int? chapterId,
+        string? chapterName,
+        int? chapterNumber,
+        int? subchapterId,
+        string? subchapterName,
+        int? subchapterNumber,
+        string workName,
+        int workNumber,
+        string workEI,
+        DateTime workDate,
+        int workValue)
+        {
+            if (_isLocked)
+                return false;
+
+            try
+            {
+                // 1. Создаем объект, если не существует
+                var constructionObject = await _context.Objects.FindAsync(objectId);
+                if (constructionObject == null)
+                {
+                    constructionObject = new Models.Object
+                    {
+                        Id = objectId,
+                        District = "Автоматически созданный",
+                        Street = "Нет данных",
+                        Status = "Черновик"
+                    };
+                    await _context.Objects.AddAsync(constructionObject);
+                }
+
+                // 2. Обработка раздела
+                Chapter? chapter = null;
+
+                if (chapterId.HasValue && chapterId > 0)
+                {
+                    chapter = await _context.Chapters.FindAsync(chapterId);
+                }
+
+                if (chapter == null && (!string.IsNullOrEmpty(chapterName) && chapterNumber.HasValue))
+                {
+                    chapter = new Chapter
+                    {
+                        ObjectId = objectId,
+                        Name = chapterName,
+                        Number = chapterNumber.Value
+                    };
+                    await _context.Chapters.AddAsync(chapter);
+                    await _context.SaveChangesAsync();
+                }
+
+                if (chapter == null) return false;
+
+                // 3. Обработка подраздела
+                Subchapter? subchapter = null;
+
+                if (subchapterId.HasValue && subchapterId > 0)
+                {
+                    subchapter = await _context.Subchapters.FindAsync(subchapterId);
+                }
+
+                if (subchapter == null && (!string.IsNullOrEmpty(subchapterName) && subchapterNumber.HasValue))
+                {
+                    subchapter = new Subchapter
+                    {
+                        ChapterId = chapter.Id,
+                        Name = subchapterName,
+                        Number = subchapterNumber.Value
+                    };
+                    await _context.Subchapters.AddAsync(subchapter);
+                    await _context.SaveChangesAsync();
+                }
+
+                if (subchapter == null) return false;
+
+                // 4. Создаем вид работ (WorkType)
+                var workType = new WorkType
+                {
+                    SubchapterId = subchapter.Id,
+                    EI = workEI,
+                    Name = workName,
+                    Number = workNumber
+                };
+                await _context.WorkTypes.AddAsync(workType);
+                await _context.SaveChangesAsync();
+
+                // 5. Создаем план работ (WorkPlan)
+                var workPlan = new WorkPlan
+                {
+                    WorkTypeId = workType.Id,
+                    Date = workDate,
+                    Value = workValue
+                };
+                await _context.WorkPlans.AddAsync(workPlan);
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+
+        // Получение плана-графика по ID объекта
+        // Получение плана-графика по ID объекта
+        public async Task<object> GetWorkScheduleByObjectIdAsync(int objectId)
+        {
+            var result = await _context.Objects
+                .Where(o => o.Id == objectId)
+                .Select(o => new
+                {
+                    Object = o,
+                    Chapters = _context.Chapters
+                        .Where(c => c.ObjectId == o.Id)
+                        .Select(c => new
+                        {
+                            Chapter = c,
+                            Subchapters = _context.Subchapters
+                                .Where(s => s.ChapterId == c.Id)
+                                .Select(s => new
+                                {
+                                    Subchapter = s,
+                                    WorkTypes = _context.WorkTypes
+                                        .Where(w => w.SubchapterId == s.Id)
+                                        .Select(w => new
+                                        {
+                                            WorkType = w,
+                                            WorkPlans = _context.WorkPlans
+                                                .Where(wp => wp.WorkTypeId == w.Id)
+                                                .ToList()
+                                        })
+                                        .ToList()
+                                })
+                                .ToList()
+                        })
+                        .ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (result == null)
+            {
+                return new { Message = "Объект не найден" };
+            }
+
+            return result;
+        }
+
+        // Удаление плана-графика по ID объекта
+        public async Task<bool> DeleteWorkScheduleByObjectIdAsync(int objectId)
+        {
+            if (_isLocked)
+                return false;
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Находим все связанные сущности
+                var chapters = await _context.Chapters
+                    .Where(c => c.ObjectId == objectId)
+                    .ToListAsync();
+
+                var subchapterIds = chapters
+                    .SelectMany(c => _context.Subchapters
+                        .Where(s => s.ChapterId == c.Id)
+                        .Select(s => s.Id))
+                    .ToList();
+
+                var workTypeIds = subchapterIds
+                    .SelectMany(sId => _context.WorkTypes
+                        .Where(w => w.SubchapterId == sId)
+                        .Select(w => w.Id))
+                    .ToList();
+
+                // Удаляем в правильном порядке (от зависимых к главным)
+                await _context.WorkPlans
+                    .Where(wp => workTypeIds.Contains(wp.WorkTypeId))
+                    .ExecuteDeleteAsync();
+
+                await _context.WorkTypes
+                    .Where(w => subchapterIds.Contains(w.SubchapterId))
+                    .ExecuteDeleteAsync();
+
+                await _context.Subchapters
+                    .Where(s => chapters.Select(c => c.Id).Contains(s.ChapterId))
+                    .ExecuteDeleteAsync();
+
+                await _context.Chapters
+                    .Where(c => c.ObjectId == objectId)
+                    .ExecuteDeleteAsync();
+
+                var objectToDelete = await _context.Objects.FindAsync(objectId);
+                if (objectToDelete != null)
+                {
+                    _context.Objects.Remove(objectToDelete);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
         #region Работа с разделами
         public async Task<IEnumerable<Chapter>> GetAllChaptersAsync()
         {

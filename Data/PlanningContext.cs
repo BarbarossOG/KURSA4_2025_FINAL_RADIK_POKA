@@ -15,10 +15,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Data
         public DbSet<Chapter> Chapters { get; set; }
         public DbSet<Subchapter> Subchapters { get; set; }
         public DbSet<WorkType> WorkTypes { get; set; }
-        public DbSet<EI> EIs { get; set; }
         public DbSet<WorkPlan> WorkPlans { get; set; }
-        public DbSet<PeriodType> PeriodTypes { get; set; }
-        public DbSet<Period> Periods { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -59,21 +56,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Data
                 .HasForeignKey(w => w.SubchapterId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<WorkType>()
-                .HasOne<EI>()
-                .WithMany()
-                .HasForeignKey(w => w.EIId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             modelBuilder.Entity<WorkPlan>()
                 .HasOne<WorkType>()
                 .WithMany()
                 .HasForeignKey(w => w.WorkTypeId);
 
-            modelBuilder.Entity<Period>()
-                .HasOne<PeriodType>()
-                .WithMany()
-                .HasForeignKey(p => p.PeriodTypeId);
         }
     }
 }
