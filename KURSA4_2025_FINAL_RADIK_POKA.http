@@ -1,0 +1,6 @@
+@KURSA4_2025_FINAL_RADIK_POKA_HostAddress = http://localhost:5175
+
+GET {{KURSA4_2025_FINAL_RADIK_POKA_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
