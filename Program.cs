@@ -12,36 +12,29 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // ���������� ��������
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             builder.Services.AddControllers();
 
-            // ����������� ��������� ��
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ
             builder.Services.AddDbContext<PlanningContext>(options =>
                 options.UseInMemoryDatabase("PlanningDatabase"));
 
-            // ����������� ������ �������
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             builder.Services.AddScoped<PlanningService>();
 
-            // �������� Swagger, ���� �����
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Swagger, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
             
-
-
-            // ������������ HTTP pipeline
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ HTTP pipeline
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
-            app.UseHttpsRedirection();
-            app.UseAuthorization();
-            app.MapControllers();
-            app.Run();
 
             using (var scope = app.Services.CreateScope())
             {
@@ -51,13 +44,24 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
 
             void SeedTestData(PlanningContext context)
             {
+                // if (!context.Objects.Any())
+                // {
+                //     context.Objects.AddRange(
+                //         new Object { Id = 1, Name = "Объект 1" },
+                //         new Object { Id = 2, Name = "Объект 2" }
+                //     );
+                //     context.SaveChanges();
+                // }
+
+                
+
                 if (!context.Chapters.Any())
                 {
                     var testChapter1 = new Chapter 
                     { 
-                        ObjectId = 1,
+                        ObjectId = 1, // Ссылается на существующий Object
                         Name = "Проектирование", 
-                        Number = 1 
+                        Number = 1
                     };
                     
                     var testChapter2 = new Chapter 
@@ -81,6 +85,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
                     context.SaveChanges();
                 }
             }
+
+            app.UseHttpsRedirection();
+            app.UseAuthorization();
+            app.MapControllers();
+            app.Run();
         }
     }
 }

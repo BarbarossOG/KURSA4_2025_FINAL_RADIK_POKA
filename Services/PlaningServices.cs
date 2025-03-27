@@ -243,7 +243,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 var chapterEntry = new PrintChapter 
                 { 
                     Name = chapter.Name, 
-                    Number = chapter.Number 
+                    Number = chapter.Number,
+                    ObjectId = chapter.ObjectId
                 };
 
                 var subchapters = await GetSubchaptersByChapterAsync(chapter.Id);
