@@ -1,6 +1,9 @@
 ﻿using KURSA4_2025_FINAL_RADIK_POKA.Data;
 using KURSA4_2025_FINAL_RADIK_POKA.Models;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 {
@@ -53,6 +56,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             chapter.Name = updatedChapter.Name;
             chapter.Number = updatedChapter.Number;
+            chapter.ObjectId = updatedChapter.ObjectId; 
+            
             await _context.SaveChangesAsync();
             return true;
         }
@@ -173,7 +178,88 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             return true;
         }
         #endregion
-      
+
+
+        public async Task<byte[]> GeneratePdfReportAsync()
+        {
+            var printPlan = await GeneratePrintPlanAsync();
+            
+            QuestPDF.Settings.License = LicenseType.Community; // Для бесплатного использования
+            
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    
+                    // Шапка документа
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text("Производственный график").Bold().FontSize(20);
+                        col.Item().Text($"Сформирован: {DateTime.Now:dd.MM.yyyy HH:mm}").FontSize(10);
+                    });
+                    
+                    // Основное содержимое
+                    page.Content().PaddingVertical(10).Column(column =>
+                    {
+                        foreach (var chapter in printPlan.Chapters)
+                        {
+                            // Раздел с серым фоном
+                            column.Item().Background(Colors.Grey.Lighten3).Padding(5).Text(
+                                $"Раздел {chapter.Number}: {chapter.Name}")
+                                .FontSize(14).Bold();
+                            
+                            // Подразделы
+                            foreach (var subchapter in chapter.Subchapters)
+                            {
+                                column.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(
+                                    $"{chapter.Number}.{subchapter.Number} {subchapter.Name}")
+                                    .FontSize(12);
+                            }
+                            
+                            column.Item().PaddingBottom(10); // Отступ между разделами
+                        }
+                    });
+                    
+                    // Подвал
+                    page.Footer().AlignCenter().Text(x =>
+                    {
+                        x.Span("Страница ");
+                        x.CurrentPageNumber();
+                    });
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+        private async Task<PrintPlan> GeneratePrintPlanAsync()
+        {
+            var chapters = await GetAllChaptersAsync();
+            var plan = new PrintPlan();
+
+            foreach (var chapter in chapters)
+            {
+                var chapterEntry = new PrintChapter 
+                { 
+                    Name = chapter.Name, 
+                    Number = chapter.Number 
+                };
+
+                var subchapters = await GetSubchaptersByChapterAsync(chapter.Id);
+                chapterEntry.Subchapters = subchapters
+                    .Select(s => new PrintSubchapter 
+                    { 
+                        Name = s.Name, 
+                        Number = s.Number 
+                    })
+                    .ToList();
+
+                plan.Chapters.Add(chapterEntry);
+            }
+            return plan;
+        }
+
     }
 
 }

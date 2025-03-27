@@ -151,6 +151,20 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 ? NoContent()
                 : BadRequest("Не удалось переместить или заблокировано");
         }
+
+        [HttpGet("pdf-report")]
+        public async Task<IActionResult> DownloadPdfReport()
+        {
+            try
+            {
+                var pdfBytes = await _service.GeneratePdfReportAsync();
+                return File(pdfBytes, "application/pdf", "production_plan.pdf");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка генерации PDF: {ex.Message}");
+            }
+        }
         #endregion
     }
 }

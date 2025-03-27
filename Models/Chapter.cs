@@ -4,7 +4,7 @@
     {
         public int Id { get; set; }
         public int ObjectId { get; set; } // Внешний ключ
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public int Number { get; set; }
     }
 }
