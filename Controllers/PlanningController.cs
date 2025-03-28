@@ -103,6 +103,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 return StatusCode(500, $"Ошибка при создании графика работ: {ex.Message}");
             }
         }
+
+
         // Получение плана-графика по ID объекта
         [HttpGet("work-schedule")]
         [ProducesResponseType(StatusCodes.Status200OK)]
