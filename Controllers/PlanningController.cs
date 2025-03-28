@@ -1,6 +1,7 @@
 ﻿using KURSA4_2025_FINAL_RADIK_POKA.Models;
 using KURSA4_2025_FINAL_RADIK_POKA.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 {
@@ -9,10 +10,12 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
     public class PlanningController : ControllerBase
     {
         private readonly PlanningService _service;
+        private readonly ReportService _reportService;
 
-        public PlanningController(PlanningService service)
+        public PlanningController(PlanningService service, ReportService reportService)
         {
             _service = service;
+            _reportService = reportService;
         }
 
         #region Управление блокировкой
@@ -43,6 +46,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CreateWorkSchedule(
         [FromQuery] int objectId,
+        [FromQuery] string district,
+        [FromQuery] string street,
+        [FromQuery] string status,
         [FromQuery] int? chapterId,
         [FromQuery] string? chapterName,
         [FromQuery] int? chapterNumber,
@@ -57,7 +63,14 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         {
             try
             {
-                // Проверка обязательных полей при создании новых сущностей
+                // Проверка обязательных полей
+                if (string.IsNullOrEmpty(district))
+                    return BadRequest("Не указан район (district)");
+                if (string.IsNullOrEmpty(street))
+                    return BadRequest("Не указана улица (street)");
+                if (string.IsNullOrEmpty(status))
+                    return BadRequest("Не указан статус (status)");
+
                 if (!chapterId.HasValue && (string.IsNullOrEmpty(chapterName) || !chapterNumber.HasValue))
                     return BadRequest("Для нового раздела необходимо указать chapterName и chapterNumber");
 
@@ -66,6 +79,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 
                 var result = await _service.CreateWorkScheduleAsync(
                     objectId,
+                    district,
+                    street,
+                    status,
                     chapterId,
                     chapterName,
                     chapterNumber,
@@ -87,7 +103,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 return StatusCode(500, $"Ошибка при создании графика работ: {ex.Message}");
             }
         }
-
         // Получение плана-графика по ID объекта
         [HttpGet("work-schedule")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -244,5 +259,118 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 : BadRequest("Не удалось переместить или заблокировано");
         }
         #endregion
+
+        #region Работа с видами работ и планами
+        [HttpPost("subchapters/{subchapterId}/work-types")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> AddWorkType(
+        int subchapterId,
+        [FromQuery] int workTypeId, // Добавляем параметр для ID
+        [FromQuery] string name,
+        [FromQuery] int number,
+        [FromQuery] string ei)
+        {
+            try
+            {
+                var result = await _service.AddWorkTypeAsync(
+                    workTypeId, // Передаем ID
+                    subchapterId,
+                    name,
+                    number,
+                    ei);
+
+                return result
+                    ? Ok(new { Message = "Вид работ успешно добавлен" })
+                    : BadRequest("Не удалось добавить вид работ (возможно, ID уже существует или редактирование заблокировано)");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при добавлении вида работ: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("work-types/{workTypeId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> DeleteWorkType(int workTypeId)
+        {
+            try
+            {
+                var result = await _service.DeleteWorkTypeAsync(workTypeId);
+                return result
+                    ? Ok(new { Message = "Вид работ успешно удалён" })
+                    : BadRequest("Не удалось удалить вид работ (возможно, редактирование заблокировано)");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при удалении вида работ: {ex.Message}");
+            }
+        }
+
+        [HttpPost("work-types/{workTypeId}/work-plans")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> AddWorkPlan(
+        int workTypeId,
+        [FromQuery] int workPlanId, // Новый параметр
+        [FromQuery] DateTime date,
+        [FromQuery] int value)
+        {
+            try
+            {
+                var result = await _service.AddWorkPlanAsync(
+                    workPlanId,
+                    workTypeId,
+                    date,
+                    value);
+
+                return result
+                    ? Ok(new { Message = "План работ успешно добавлен" })
+                    : BadRequest("Не удалось добавить план работ (возможно, ID уже существует или редактирование заблокировано)");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при добавлении плана работ: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("work-plans/{workPlanId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> DeleteWorkPlan(int workPlanId)
+        {
+            try
+            {
+                var result = await _service.DeleteWorkPlanAsync(workPlanId);
+                return result
+                    ? Ok(new { Message = "План работ успешно удалён" })
+                    : BadRequest("Не удалось удалить план работ (возможно, редактирование заблокировано)");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при удалении плана работ: {ex.Message}");
+            }
+        }
+        #endregion
+        [HttpGet("report")]
+        public async Task<IActionResult> GenerateReport(
+        [FromQuery] int objectId,
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate)
+        {
+            try
+            {
+                var pdfBytes = await _reportService.GenerateWorkSchedulePdfAsync(objectId, startDate, endDate);
+
+                return File(pdfBytes, "application/pdf",
+                    $"WorkSchedule_{objectId}_{startDate:yyyyMMdd}-{endDate:yyyyMMdd}.pdf");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка при генерации отчета: {ex.Message}");
+            }
+        }
+
     }
 }

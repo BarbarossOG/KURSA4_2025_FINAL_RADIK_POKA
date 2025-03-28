@@ -12,8 +12,10 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
         {
             var builder = WebApplication.CreateBuilder(args);
 
+
             // Добавление сервисов
             builder.Services.AddControllers();
+            builder.Services.AddScoped<ReportService>();
 
             // Регистрация контекста БД
             builder.Services.AddDbContext<PlanningContext>(options =>

@@ -20,8 +20,12 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public bool IsLocked() => _isLocked;
         #endregion
 
+        
         public async Task<bool> CreateWorkScheduleAsync(
         int objectId,
+        string district,
+        string street,
+        string status,
         int? chapterId,
         string? chapterName,
         int? chapterNumber,
@@ -39,19 +43,28 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             try
             {
-                // 1. Создаем объект, если не существует
+                // 1. Создаем/обновляем объект
                 var constructionObject = await _context.Objects.FindAsync(objectId);
                 if (constructionObject == null)
                 {
                     constructionObject = new Models.Object
                     {
                         Id = objectId,
-                        District = "Автоматически созданный",
-                        Street = "Нет данных",
-                        Status = "Черновик"
+                        District = district,
+                        Street = street,
+                        Status = status
                     };
                     await _context.Objects.AddAsync(constructionObject);
                 }
+                else
+                {
+                    // Обновляем существующий объект
+                    constructionObject.District = district;
+                    constructionObject.Street = street;
+                    constructionObject.Status = status;
+                    _context.Objects.Update(constructionObject);
+                }
+
 
                 // 2. Обработка раздела
                 Chapter? chapter = null;
@@ -127,7 +140,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         }
 
 
-        // Получение плана-графика по ID объекта
+        
         // Получение плана-графика по ID объекта
         public async Task<object> GetWorkScheduleByObjectIdAsync(int objectId)
         {
@@ -386,7 +399,122 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             return true;
         }
         #endregion
-      
-    }
+        #region Работа с видами работ и планами
+        public async Task<bool> AddWorkTypeAsync(
+            int workTypeId, // Добавляем параметр для ручного ввода ID
+            int subchapterId,
+            string name,
+            int number,
+            string ei)
+        {
+            if (_isLocked) return false;
+
+            try
+            {
+                // Проверяем, существует ли уже WorkType с таким ID
+                if (await _context.WorkTypes.AnyAsync(w => w.Id == workTypeId))
+                {
+                    return false; // или можно выбросить исключение
+                }
+
+                var workType = new WorkType
+                {
+                    Id = workTypeId, // Устанавливаем переданный ID
+                    SubchapterId = subchapterId,
+                    Name = name,
+                    Number = number,
+                    EI = ei
+                };
+
+                await _context.WorkTypes.AddAsync(workType);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteWorkTypeAsync(int workTypeId)
+{
+            if (_isLocked) return false;
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+    
+            try
+            {
+                // Сначала удаляем все связанные WorkPlans
+                await _context.WorkPlans
+                    .Where(wp => wp.WorkTypeId == workTypeId)
+                    .ExecuteDeleteAsync();
+
+                // Затем удаляем сам WorkType
+                await _context.WorkTypes
+                    .Where(w => w.Id == workTypeId)
+                    .ExecuteDeleteAsync();
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
+        public async Task<bool> AddWorkPlanAsync(
+        int workPlanId, // Добавляем параметр для ID
+        int workTypeId,
+        DateTime date,
+        int value)
+        {
+            if (_isLocked) return false;
+
+            try
+            {
+                if (await _context.WorkPlans.AnyAsync(wp => wp.Id == workPlanId))
+                    return false;
+
+                var workPlan = new WorkPlan
+                {
+                    Id = workPlanId, // Устанавливаем переданный ID
+                    WorkTypeId = workTypeId,
+                    Date = date,
+                    Value = value
+                };
+
+                await _context.WorkPlans.AddAsync(workPlan);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteWorkPlanAsync(int workPlanId)
+        {
+            if (_isLocked) return false;
+
+            try
+            {
+                await _context.WorkPlans
+                    .Where(wp => wp.Id == workPlanId)
+                    .ExecuteDeleteAsync();
+            
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        #endregion
+            }
 
 }
