@@ -13,34 +13,77 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
             var builder = WebApplication.CreateBuilder(args);
 
 
-            // Добавление сервисов
             builder.Services.AddControllers();
             builder.Services.AddScoped<ReportService>();
 
-            // Регистрация контекста БД
             builder.Services.AddDbContext<PlanningContext>(options =>
                 options.UseInMemoryDatabase("PlanningDatabase"));
 
-            // Регистрация вашего сервиса
             builder.Services.AddScoped<PlanningService>();
 
-            // Добавьте Swagger, если нужно
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Конфигурация HTTP pipeline
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
+            using (var scope = app.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<PlanningContext>();
+                SeedTestData(context);
+            }
+
             app.UseHttpsRedirection();
             app.UseAuthorization();
             app.MapControllers();
             app.Run();
+
+            void SeedTestData(PlanningContext context)
+            {
+                if (!context.Objects.Any())
+                {
+                    context.Objects.AddRange(
+                        new Models.Object { Id = 1, District = "РћР±СЉРµРєС‚ 1", Status="DEAD", Street="Groov"},
+                        new Models.Object { Id = 2, District = "РћР±СЉРµРєС‚ 2", Status="BUILDING", Street="Krupskoi" }
+                    );
+                    context.SaveChanges();
+                }
+
+                if (!context.Chapters.Any())
+                {
+                    var testChapter1 = new Chapter 
+                    { 
+                        ObjectId = 1, // РЎСЃС‹Р»Р°РµС‚СЃСЏ РЅР° СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ Object
+                        Name = "РџСЂРѕРµРєС‚РёСЂРѕРІР°РЅРёРµ", 
+                        Number = 1
+                    };
+                    
+                    var testChapter2 = new Chapter 
+                    { 
+                        ObjectId = 2, 
+                        Name = "РЎС‚СЂРѕРёС‚РµР»СЊСЃС‚РІРѕ", 
+                        Number = 2 
+                    };
+
+                    context.Chapters.AddRange(testChapter1, testChapter2);
+                    
+                    var testSubchapters = new List<Subchapter>
+                    {
+                        new() { ChapterId = testChapter1.Id, Name = "Р Р°Р·СЂР°Р±РѕС‚РєР° С‡РµСЂС‚РµР¶РµР№", Number = 1 },
+                        new() { ChapterId = testChapter1.Id, Name = "РЎРѕРіР»Р°СЃРѕРІР°РЅРёРµ РґРѕРєСѓРјРµРЅС‚Р°С†РёРё", Number = 2 },
+                        new() { ChapterId = testChapter2.Id, Name = "Р—РµРјР»СЏРЅС‹Рµ СЂР°Р±РѕС‚С‹", Number = 1 },
+                        new() { ChapterId = testChapter2.Id, Name = "РњРѕРЅС‚Р°Р¶ РєРѕРЅСЃС‚СЂСѓРєС†РёР№", Number = 2 }
+                    };
+
+                    context.Subchapters.AddRange(testSubchapters);
+                    context.SaveChanges();
+                }
+            }
         }
     }
 }

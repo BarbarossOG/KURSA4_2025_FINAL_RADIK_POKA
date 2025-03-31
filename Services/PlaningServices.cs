@@ -19,24 +19,62 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public void UnlockChanges() => _isLocked = false;
         public bool IsLocked() => _isLocked;
         #endregion
-
+        #region Работа с объектами
         
+        public Models.Object? GetObjectById(int objectId)
+        {
+            return _context.Objects.FirstOrDefault(o => o.Id == objectId);
+        }
+
+        public bool LockObject(int objectId)
+        {
+            var obj = GetObjectById(objectId);
+            if (obj == null) return false;
+
+            obj.Status = "LOCKED";
+            _context.SaveChanges();
+            return true;
+        }
+
+        public bool UnlockObject(int objectId)
+        {
+            var obj = GetObjectById(objectId);
+            if (obj == null) return false;
+
+            obj.Status = "UNLOCKED";
+            _context.SaveChanges();
+            return true;
+        }
+
+        public bool IsObjectLocked(int objectId)
+        {
+            var obj = GetObjectById(objectId);
+            return obj != null && obj.Status == "LOCKED";
+        }
+        #endregion
+
+        public int GetMaxObjectId()
+    {
+        return _context.Objects.Any() ? _context.Objects.Max(o => o.Id) : 0;
+    }
+
         public async Task<bool> CreateWorkScheduleAsync(
-        int objectId,
-        string district,
-        string street,
-        string status,
-        int? chapterId,
-        string? chapterName,
-        int? chapterNumber,
-        int? subchapterId,
-        string? subchapterName,
-        int? subchapterNumber,
-        string workName,
-        int workNumber,
-        string workEI,
-        DateTime workDate,
-        int workValue)
+        int objectId
+        // string district,
+        // string street,
+        // string status,
+        // int? chapterId,
+        // string? chapterName,
+        // int? chapterNumber,
+        // int? subchapterId,
+        // string? subchapterName,
+        // int? subchapterNumber,
+        // string workName,
+        // int workNumber,
+        // string workEI,
+        // DateTime workDate,
+        // int workValue
+        )
         {
             if (_isLocked)
                 return false;
@@ -44,92 +82,94 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             try
             {
                 // 1. Создаем/обновляем объект
+                int maxId = GetMaxObjectId();
                 var constructionObject = await _context.Objects.FindAsync(objectId);
                 if (constructionObject == null)
                 {
                     constructionObject = new Models.Object
                     {
                         Id = objectId,
-                        District = district,
-                        Street = street,
-                        Status = status
+                        // Id = maxId,
+                        // District = district,
+                        // Street = street,
+                        Status = "Edit" 
                     };
                     await _context.Objects.AddAsync(constructionObject);
                 }
                 else
                 {
                     // Обновляем существующий объект
-                    constructionObject.District = district;
-                    constructionObject.Street = street;
-                    constructionObject.Status = status;
+                    // constructionObject.District = district;
+                    // constructionObject.Street = street;
+                    constructionObject.Status = "Edit";
                     _context.Objects.Update(constructionObject);
                 }
 
 
                 // 2. Обработка раздела
-                Chapter? chapter = null;
+                // Chapter? chapter = null;
 
-                if (chapterId.HasValue && chapterId > 0)
-                {
-                    chapter = await _context.Chapters.FindAsync(chapterId);
-                }
+                // if (chapterId.HasValue && chapterId > 0)
+                // {
+                //     chapter = await _context.Chapters.FindAsync(chapterId);
+                // }
 
-                if (chapter == null && (!string.IsNullOrEmpty(chapterName) && chapterNumber.HasValue))
-                {
-                    chapter = new Chapter
-                    {
-                        ObjectId = objectId,
-                        Name = chapterName,
-                        Number = chapterNumber.Value
-                    };
-                    await _context.Chapters.AddAsync(chapter);
-                    await _context.SaveChangesAsync();
-                }
+                // if (chapter == null && (!string.IsNullOrEmpty(chapterName) && chapterNumber.HasValue))
+                // {
+                //     chapter = new Chapter
+                //     {
+                //         ObjectId = objectId,
+                //         Name = chapterName,
+                //         Number = chapterNumber.Value
+                //     };
+                //     await _context.Chapters.AddAsync(chapter);
+                //     await _context.SaveChangesAsync();
+                // }
 
-                if (chapter == null) return false;
+                // if (chapter == null) return false;
 
-                // 3. Обработка подраздела
-                Subchapter? subchapter = null;
+                // // 3. Обработка подраздела
+                // Subchapter? subchapter = null;
 
-                if (subchapterId.HasValue && subchapterId > 0)
-                {
-                    subchapter = await _context.Subchapters.FindAsync(subchapterId);
-                }
+                // if (subchapterId.HasValue && subchapterId > 0)
+                // {
+                //     subchapter = await _context.Subchapters.FindAsync(subchapterId);
+                // }
 
-                if (subchapter == null && (!string.IsNullOrEmpty(subchapterName) && subchapterNumber.HasValue))
-                {
-                    subchapter = new Subchapter
-                    {
-                        ChapterId = chapter.Id,
-                        Name = subchapterName,
-                        Number = subchapterNumber.Value
-                    };
-                    await _context.Subchapters.AddAsync(subchapter);
-                    await _context.SaveChangesAsync();
-                }
+                // if (subchapter == null && (!string.IsNullOrEmpty(subchapterName) && subchapterNumber.HasValue))
+                // {
+                //     subchapter = new Subchapter
+                //     {
+                //         ChapterId = chapter.Id,
+                //         Name = subchapterName,
+                //         Number = subchapterNumber.Value
+                //     };
+                //     await _context.Subchapters.AddAsync(subchapter);
+                //     await _context.SaveChangesAsync();
+                // }
 
-                if (subchapter == null) return false;
+                // if (subchapter == null) return false;
 
-                // 4. Создаем вид работ (WorkType)
-                var workType = new WorkType
-                {
-                    SubchapterId = subchapter.Id,
-                    EI = workEI,
-                    Name = workName,
-                    Number = workNumber
-                };
-                await _context.WorkTypes.AddAsync(workType);
-                await _context.SaveChangesAsync();
+                // // 4. Создаем вид работ (WorkType)
+                // var workType = new WorkType
+                // {
+                //     SubchapterId = subchapter.Id,
+                //     EI = workEI,
+                //     Name = workName,
+                //     Number = workNumber
+                // };
+                // await _context.WorkTypes.AddAsync(workType);
+                // await _context.SaveChangesAsync();
 
-                // 5. Создаем план работ (WorkPlan)
-                var workPlan = new WorkPlan
-                {
-                    WorkTypeId = workType.Id,
-                    Date = workDate,
-                    Value = workValue
-                };
-                await _context.WorkPlans.AddAsync(workPlan);
-                await _context.SaveChangesAsync();
+                // // 5. Создаем план работ (WorkPlan)
+                // var workPlan = new WorkPlan
+                // {
+                //     WorkTypeId = workType.Id,
+                //     Date = workDate,
+                //     Value = workValue
+                // };
+                // await _context.WorkPlans.AddAsync(workPlan);
+                // await _context.SaveChangesAsync();
 
                 return true;
             }
@@ -263,7 +303,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             if (chapter.Id == 0)
             {
-                chapter.Id = await _context.Chapters.MaxAsync(c => (int?)c.Id) + 1 ?? 1;
+                
+                // chapter.Id = await _context.Chapters.MaxAsync(c => (int?)c.Id) + 1 ?? 1;
             }
 
             _context.Chapters.Add(chapter);

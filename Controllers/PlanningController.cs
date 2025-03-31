@@ -19,24 +19,47 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         #region Управление блокировкой
-        [HttpPost("lock")]
-        public IActionResult LockPlanning()
+        [HttpPost("lock/{objectId}")]
+        public IActionResult LockPlanning(int objectId)
         {
+            var obj = _service.GetObjectById(objectId);
+            if (obj == null)
+            {
+                return BadRequest(new { Message = "Объект не найден" });
+            }
+
+            _service.LockObject(objectId);
             _service.LockChanges();
-            return Ok(new { Message = "Изменения заблокированы" });
+
+            return Ok(new { Message = $"Объект {objectId} заблокирован" });
         }
 
-        [HttpPost("unlock")]
-        public IActionResult UnlockPlanning()
+        [HttpPost("unlock/{objectId}")]
+        public IActionResult UnlockPlanning(int objectId)
         {
+            var obj = _service.GetObjectById(objectId);
+            if (obj == null)
+            {
+                return BadRequest(new { Message = "Объект не найден" });
+            }
+
+            _service.UnlockObject(objectId);
             _service.UnlockChanges();
-            return Ok(new { Message = "Изменения разблокированы" });
+
+            return Ok(new { Message = $"Объект {objectId} разблокирован" });
         }
 
-        [HttpGet("lock-status")]
-        public IActionResult GetLockStatus()
+        [HttpGet("lock-status/{objectId}")]
+        public IActionResult GetLockStatus(int objectId)
         {
-            return Ok(new { IsLocked = _service.IsLocked() });
+            var obj = _service.GetObjectById(objectId);
+            if (obj == null)
+            {
+                return NotFound(new { Message = "Объект не найден" });
+            }
+
+            bool isLocked = _service.IsObjectLocked(objectId);
+            return Ok(new { ObjectId = objectId, IsLocked = isLocked });
         }
         #endregion
 
@@ -45,55 +68,58 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CreateWorkSchedule(
-        [FromQuery] int objectId,
-        [FromQuery] string district,
-        [FromQuery] string street,
-        [FromQuery] string status,
-        [FromQuery] int? chapterId,
-        [FromQuery] string? chapterName,
-        [FromQuery] int? chapterNumber,
-        [FromQuery] int? subchapterId,
-        [FromQuery] string? subchapterName,
-        [FromQuery] int? subchapterNumber,
-        [FromQuery] string workName,
-        [FromQuery] int workNumber,
-        [FromQuery] string workEI,
-        [FromQuery] DateTime workDate,
-        [FromQuery] int workValue)
+        [FromQuery] int objectId
+        // [FromQuery] string district,
+        // [FromQuery] string street
+        // [FromQuery] string status,
+        // [FromQuery] int? chapterId,
+        // [FromQuery] string? chapterName,
+        // [FromQuery] int? chapterNumber,
+        // [FromQuery] int? subchapterId,
+        // [FromQuery] string? subchapterName,
+        // [FromQuery] int? subchapterNumber,
+        // [FromQuery] string workName,
+        // [FromQuery] int workNumber,
+        // [FromQuery] string workEI,
+        // [FromQuery] DateTime workDate,
+        // [FromQuery] int workValue
+        )
         {
             try
             {
                 // Проверка обязательных полей
-                if (string.IsNullOrEmpty(district))
-                    return BadRequest("Не указан район (district)");
-                if (string.IsNullOrEmpty(street))
-                    return BadRequest("Не указана улица (street)");
-                if (string.IsNullOrEmpty(status))
-                    return BadRequest("Не указан статус (status)");
+                if (objectId <= 0)
+                    return BadRequest(new { Message = "Некорректный ID объекта" });
+                // if (string.IsNullOrEmpty(district))
+                    // return BadRequest("Не указан район (district)");
+                // if (string.IsNullOrEmpty(street))
+                    // return BadRequest("Не указана улица (street)");
+                // if (string.IsNullOrEmpty(status))
+                    // return BadRequest("Не указан статус (status)");
 
-                if (!chapterId.HasValue && (string.IsNullOrEmpty(chapterName) || !chapterNumber.HasValue))
-                    return BadRequest("Для нового раздела необходимо указать chapterName и chapterNumber");
+                // if (!chapterId.HasValue && (string.IsNullOrEmpty(chapterName) || !chapterNumber.HasValue))
+                    // return BadRequest("Для нового раздела необходимо указать chapterName и chapterNumber");
 
-                if (!subchapterId.HasValue && (string.IsNullOrEmpty(subchapterName) || !subchapterNumber.HasValue))
-                    return BadRequest("Для нового подраздела необходимо указать subchapterName и subchapterNumber");
+                // if (!subchapterId.HasValue && (string.IsNullOrEmpty(subchapterName) || !subchapterNumber.HasValue))
+                    // return BadRequest("Для нового подраздела необходимо указать subchapterName и subchapterNumber");
 
                 var result = await _service.CreateWorkScheduleAsync(
-                    objectId,
-                    district,
-                    street,
-                    status,
-                    chapterId,
-                    chapterName,
-                    chapterNumber,
-                    subchapterId,
-                    subchapterName,
-                    subchapterNumber,
-                    workName,
-                    workNumber,
-                    workEI,
-                    workDate,
-                    workValue);
-
+                    objectId
+                    // district,
+                    // street
+                    // status,
+                    // chapterId,
+                    // chapterName,
+                    // chapterNumber,
+                    // subchapterId,
+                    // subchapterName,
+                    // subchapterNumber,
+                    // workName,
+                    // workNumber,
+                    // workEI,
+                    // workDate,
+                    // workValue
+                    );
                 return result
                     ? Ok("График работ успешно создан")
                     : BadRequest("Не удалось создать график работ");
@@ -147,11 +173,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         #region Работа с разделами
-        [HttpGet("chapters")]
-        public async Task<ActionResult<IEnumerable<Chapter>>> GetAllChapters()
-        {
-            return Ok(await _service.GetAllChaptersAsync());
-        }
+        // [HttpGet("chapters")]
+        // public async Task<ActionResult<IEnumerable<Chapter>>> GetAllChapters()
+        // {
+        //     return Ok(await _service.GetAllChaptersAsync());
+        // }
 
         [HttpGet("chapters/{id}")]
         public async Task<ActionResult<Chapter>> GetChapter(int id)
@@ -160,7 +186,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             return chapter != null ? Ok(chapter) : NotFound();
         }
 
-        [HttpPost("chapters")]
+        [HttpPost("create-chapters")]
         public async Task<ActionResult<Chapter>> CreateChapter([FromBody] Chapter chapter)
         {
             try
