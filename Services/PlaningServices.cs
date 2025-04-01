@@ -105,17 +105,32 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             if (plan == null) return null;
 
             var chapters = await _context.Chapters
-                .Where(c => c.ObjectId == plan.ObjectId)
-                .Include(c => c.Subchapters)
-                    .ThenInclude(s => s.WorkTypes)
-                        .ThenInclude(w => w.WorkPlans)
+                .Where(c => c.PlanId == planId)
                 .OrderBy(c => c.Number)
+                .ToListAsync();
+
+            var subchapters = await _context.Subchapters
+                .Where(s => chapters.Select(c => c.Id).Contains(s.ChapterId))
+                .OrderBy(s => s.Number)
+                .ToListAsync();
+
+            var workTypes = await _context.WorkTypes
+                .Where(w => subchapters.Select(s => s.Id).Contains(w.SubchapterId))
+                .OrderBy(w => w.Number)
+                .ToListAsync();
+
+            var workPlans = await _context.WorkPlans
+                .Where(wp => workTypes.Select(w => w.Id).Contains(wp.WorkTypeId))
+                .OrderBy(wp => wp.Date)
                 .ToListAsync();
 
             return new PlanStructureDto
             {
                 Plan = plan,
-                Chapters = chapters
+                Chapters = chapters,
+                Subchapters = subchapters,
+                WorkTypes = workTypes,
+                WorkPlans = workPlans
             };
         }
 
@@ -158,15 +173,14 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             try
             {
-                // Получаем все связанные сущности
+                // Удаляем все связанные сущности
                 var chapters = await _context.Chapters
+                    .Where(c => c.PlanId == planId)
                     .Include(c => c.Subchapters)
                         .ThenInclude(s => s.WorkTypes)
                             .ThenInclude(w => w.WorkPlans)
-                    .Where(c => c.ObjectId == plan.ObjectId)
                     .ToListAsync();
 
-                // Удаляем WorkPlans
                 foreach (var chapter in chapters)
                 {
                     foreach (var subchapter in chapter.Subchapters)
@@ -175,25 +189,10 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                         {
                             _context.WorkPlans.RemoveRange(workType.WorkPlans);
                         }
-                    }
-                }
-
-                // Удаляем WorkTypes
-                foreach (var chapter in chapters)
-                {
-                    foreach (var subchapter in chapter.Subchapters)
-                    {
                         _context.WorkTypes.RemoveRange(subchapter.WorkTypes);
                     }
-                }
-
-                // Удаляем Subchapters
-                foreach (var chapter in chapters)
-                {
                     _context.Subchapters.RemoveRange(chapter.Subchapters);
                 }
-
-                // Удаляем Chapters
                 _context.Chapters.RemoveRange(chapters);
 
                 // Удаляем сам план
@@ -235,9 +234,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<int> GetCurrentChapterIdAsync()
         {
-            int objectId = await GetCurrentObjectIdAsync();
+            int planId = await GetCurrentPlanIdAsync();
             var chapter = await _context.Chapters
-                .Where(c => c.ObjectId == objectId)
+                .Where(c => c.PlanId == planId)
                 .OrderByDescending(c => c.Id)
                 .FirstOrDefaultAsync();
 
@@ -258,9 +257,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         #region Работа с разделами
         public async Task<IEnumerable<Chapter>> GetAllChaptersAsync()
         {
-            int objectId = await GetCurrentObjectIdAsync();
+            int planId = await GetCurrentPlanIdAsync();
             return await _context.Chapters
-                .Where(c => c.ObjectId == objectId)
+                .Where(c => c.PlanId == planId)
                 .OrderBy(c => c.Number)
                 .ToListAsync();
         }
@@ -268,7 +267,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public async Task<Chapter?> GetChapterByIdAsync(int id)
         {
             return await _context.Chapters
-                .Include(c => c.Object)
+                .Include(c => c.Plan)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
@@ -282,8 +281,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             try
             {
+                chapter.PlanId = planId;
                 chapter.Id = await _context.Chapters.MaxAsync(c => (int?)c.Id) + 1 ?? 1;
-                chapter.ObjectId = plan.ObjectId;
                 await _context.Chapters.AddAsync(chapter);
                 await _context.SaveChangesAsync();
                 return (true, $"Раздел {chapter.Name} создан");
@@ -339,7 +338,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 return (false, "План заблокирован или не найден");
 
             var chapters = await _context.Chapters
-                .Where(c => c.ObjectId == plan.ObjectId)
+                .Where(c => c.PlanId == planId)
                 .ToListAsync();
 
             if (newOrder.Count != chapters.Count)
@@ -477,7 +476,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             var newChapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == newChapterId);
             if (newChapter == null) return false;
 
-            if (newChapter.ObjectId != plan.ObjectId)
+            if (newChapter.PlanId != planId)
                 return false;
 
             subchapter.ChapterId = newChapterId;
@@ -619,5 +618,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
     {
         public GraphicPlanningOfWork Plan { get; set; }
         public IEnumerable<Chapter> Chapters { get; set; }
+        public IEnumerable<Subchapter> Subchapters { get; set; }
+        public IEnumerable<WorkType> WorkTypes { get; set; }
+        public IEnumerable<WorkPlan> WorkPlans { get; set; }
     }
 }

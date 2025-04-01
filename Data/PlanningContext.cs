@@ -32,9 +32,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Data
         {
 
             modelBuilder.Entity<Chapter>()
-                .HasOne(c => c.Object)
+                .HasOne(c => c.Plan)
                 .WithMany()
-                .HasForeignKey(c => c.ObjectId);
+                .HasForeignKey(c => c.PlanId);
 
             modelBuilder.Entity<Subchapter>()
                 .HasOne(s => s.Chapter)

@@ -7,7 +7,6 @@ using QuestPDF.Infrastructure;
 
 namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 {
-
     public class ReportService
     {
         private readonly PlanningContext _context;
@@ -18,15 +17,18 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
-        public async Task<byte[]> GenerateWorkSchedulePdfAsync(int objectId, DateTime startDate, DateTime endDate)
+        public async Task<byte[]> GenerateWorkSchedulePdfAsync(int planId, DateTime startDate, DateTime endDate)
         {
-            
-            // Получаем данные для отчета и информацию об объекте
-            var constructionObject = await _context.Objects.FindAsync(objectId);
-            if (constructionObject == null)
-                throw new Exception("Объект не найден");
+            // Получаем данные для отчета и информацию о плане
+            var plan = await _context.GraphicPlanningsOfWork
+                .Include(p => p.Object)
+                .FirstOrDefaultAsync(p => p.Id == planId);
 
-            var reportData = await GetReportDataAsync(objectId, startDate, endDate);
+            if (plan == null)
+                throw new Exception("План не найден");
+
+            var reportData = await GetReportDataAsync(planId, startDate, endDate);
+            var reportDate = DateTime.Now;
 
             // Генерируем PDF
             var document = Document.Create(container =>
@@ -38,7 +40,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(10));
 
-                    // Заголовок с информацией об объекте
+                    // Заголовок с информацией об объекте и плане
                     page.Header()
                         .Column(column =>
                         {
@@ -55,23 +57,37 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                                 .Row(row =>
                                 {
                                     row.RelativeItem()
-                                        .Text($"Объект ID: {constructionObject.Id}")
+                                        .Text($"Объект: {plan.Object.Street}")
                                         .FontSize(10);
 
                                     row.RelativeItem()
-                                        .Text($"Район: {constructionObject.District}")
+                                        .Text($"Район: {plan.Object.District}")
                                         .FontSize(10);
 
                                     row.RelativeItem()
-                                        .Text($"Улица: {constructionObject.Street}")
+                                        .Text($"Статус: {plan.Object.Status}")
+                                        .FontSize(10);
+                                });
+
+                            // Третья строка - информация о плане
+                            column.Item()
+                                .PaddingTop(5)
+                                .AlignCenter()
+                                .Row(row =>
+                                {
+                                    row.RelativeItem()
+                                        .Text($"Версия плана: {plan.Version}")
                                         .FontSize(10);
 
                                     row.RelativeItem()
-                                        .Text($"Статус: {constructionObject.Status}")
+                                        .Text($"Статус плана: {plan.Status}")
+                                        .FontSize(10);
+
+                                    row.RelativeItem()
+                                        .Text($"Дата создания отчета: {reportDate:dd.MM.yyyy HH:mm}")
                                         .FontSize(10);
                                 });
                         });
-
 
                     page.Content()
                         .PaddingVertical(1, Unit.Centimetre)
@@ -151,7 +167,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                                         .Text(value > 0 ? value.ToString() : "-");
                                 }
                             }
-                        
                         });
                 });
             });
@@ -159,7 +174,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             return document.GeneratePdf();
         }
 
-        private async Task<List<ReportWorkPlanDto>> GetReportDataAsync(int objectId, DateTime startDate, DateTime endDate)
+        private async Task<List<ReportWorkPlanDto>> GetReportDataAsync(int planId, DateTime startDate, DateTime endDate)
         {
             var result = new List<ReportWorkPlanDto>();
             var weeks = GetWeeksBetween(startDate, endDate);
@@ -168,13 +183,16 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             var chapterWeeklySums = new Dictionary<int, Dictionary<string, int>>();
             var subchapterWeeklySums = new Dictionary<int, Dictionary<string, int>>();
 
-            // Получаем объект
-            var constructionObject = await _context.Objects.FindAsync(objectId);
-            if (constructionObject == null) return result;
+            // Получаем план
+            var plan = await _context.GraphicPlanningsOfWork
+                .Include(p => p.Object)
+                .FirstOrDefaultAsync(p => p.Id == planId);
 
-            // Получаем все главы для объекта
+            if (plan == null) return result;
+
+            // Получаем все главы для плана
             var chapters = await _context.Chapters
-                .Where(c => c.ObjectId == objectId)
+                .Where(c => c.PlanId == planId)
                 .OrderBy(c => c.Number)
                 .ToListAsync();
 

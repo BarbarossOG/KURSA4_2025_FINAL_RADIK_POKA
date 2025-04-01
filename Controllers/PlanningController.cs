@@ -125,8 +125,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с разделами
-        [HttpGet("chapters")]
-        public async Task<IActionResult> GetAllChapters()
+        [HttpGet("plans/{planId}/chapters")]
+        public async Task<IActionResult> GetAllChapters(int planId)
         {
             try
             {
@@ -148,15 +148,16 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 : NotFound(new { Message = "Раздел не найден" });
         }
 
-        [HttpPost("chapters")]
-        public async Task<IActionResult> CreateChapter([FromBody] ChapterCreateRequest request)
+        [HttpPost("plans/{planId}/chapters")]
+        public async Task<IActionResult> CreateChapter(int planId, [FromBody] ChapterCreateRequest request)
         {
             try
             {
                 var chapter = new Chapter
                 {
                     Name = request.Name,
-                    Number = request.Number
+                    Number = request.Number,
+                    PlanId = planId
                 };
 
                 var result = await _service.AddChapterAsync(chapter);
@@ -198,8 +199,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 : NotFound(new { Message = "Раздел не найден или редактирование заблокировано" });
         }
 
-        [HttpPost("chapters/reorder")]
-        public async Task<IActionResult> ReorderChapters([FromBody] List<int> newOrder)
+        [HttpPost("plans/{planId}/chapters/reorder")]
+        public async Task<IActionResult> ReorderChapters(int planId, [FromBody] List<int> newOrder)
         {
             var result = await _service.ReorderChaptersAsync(newOrder);
             return result.Success
@@ -232,8 +233,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 : NotFound(new { Message = "Подраздел не найден" });
         }
 
-        [HttpPost("subchapters")]
-        public async Task<IActionResult> CreateSubchapter([FromBody] SubchapterCreateRequest request)
+        [HttpPost("chapters/{chapterId}/subchapters")]
+        public async Task<IActionResult> CreateSubchapter(int chapterId, [FromBody] SubchapterCreateRequest request)
         {
             try
             {
@@ -296,8 +297,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с видами работ и планами
-        [HttpPost("work-types")]
-        public async Task<IActionResult> AddWorkType([FromBody] WorkTypeCreateRequest request)
+        [HttpPost("subchapters/{subchapterId}/work-types")]
+        public async Task<IActionResult> AddWorkType(int subchapterId, [FromBody] WorkTypeCreateRequest request)
         {
             try
             {
@@ -325,8 +326,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 : BadRequest(new { Message = "Не удалось удалить вид работ" });
         }
 
-        [HttpPost("work-plans")]
-        public async Task<IActionResult> AddWorkPlan([FromBody] WorkPlanCreateRequest request)
+        [HttpPost("work-types/{workTypeId}/work-plans")]
+        public async Task<IActionResult> AddWorkPlan(int workTypeId, [FromBody] WorkPlanCreateRequest request)
         {
             try
             {
@@ -355,17 +356,18 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
         #endregion
 
-        [HttpGet("report")]
+        [HttpGet("plans/{planId}/report")]
         public async Task<IActionResult> GenerateReport(
-            [FromQuery] int objectId,
-            [FromQuery] DateTime startDate,
-            [FromQuery] DateTime endDate)
+        [FromRoute] int planId,
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate)
         {
             try
             {
-                var pdfBytes = await _reportService.GenerateWorkSchedulePdfAsync(objectId, startDate, endDate);
+                var pdfBytes = await _reportService.GenerateWorkSchedulePdfAsync(planId, startDate, endDate);
+                var reportDate = DateTime.Now;
                 return File(pdfBytes, "application/pdf",
-                    $"WorkSchedule_{objectId}_{startDate:yyyyMMdd}-{endDate:yyyyMMdd}.pdf");
+                    $"WorkSchedule_Plan_{planId}_{reportDate:yyyyMMdd_HHmm}.pdf");
             }
             catch (Exception ex)
             {
