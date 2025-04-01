@@ -20,6 +20,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public bool IsLocked() => _isLocked;
         #endregion
 
+        #region Получение текущий ID
         public async Task<int> GetCurrentObjectIdAsync()
         {
             var lastPlan = await _context.GraphicPlanningsOfWork
@@ -28,6 +29,27 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             return lastPlan?.ObjectId ?? throw new Exception("Не найден активный план работ");
         }
+        public async Task<int> GetCurrentChapterIdAsync()
+        {
+            int objectId = await GetCurrentObjectIdAsync();
+            var lastChapter = await _context.Chapters
+                .Where(c => c.ObjectId == objectId)
+                .OrderByDescending(c => c.Id)
+                .FirstOrDefaultAsync();
+
+            return lastChapter?.Id ?? throw new Exception("Не найден активный раздел");
+        }
+
+        public async Task<int> GetCurrentSubchapterIdAsync(int chapterId)
+        {
+            var lastSubchapter = await _context.Subchapters
+                .Where(s => s.ChapterId == chapterId)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync();
+
+            return lastSubchapter?.Id ?? throw new Exception("Не найден активный подраздел");
+        }
+        #endregion
 
         #region Работа с планами графиков работ
         public async Task<(bool Success, int PlanId, string Message)> CreateWorkScheduleAsync(int objectId)
@@ -296,28 +318,36 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
-        public async Task<(bool Success, string Message)> AddSubchapterAsync(Subchapter subchapter)
+        public async Task<(bool Success, string Message, Subchapter Subchapter)> AddSubchapterAsync(string name, int number)
         {
-            var chapter = await _context.Chapters
-                .Include(c => c.Object)
-                .FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-
-            if (chapter == null)
-                return (false, "Раздел не найден");
-
-            if (_isLocked || await IsObjectLocked(chapter.ObjectId))
-                return (false, "Редактирование заблокировано");
-
             try
             {
-                subchapter.Id = await _context.Subchapters.MaxAsync(s => (int?)s.Id) + 1 ?? 1;
-                _context.Subchapters.Add(subchapter);
+                int chapterId = await GetCurrentChapterIdAsync();
+                var chapter = await _context.Chapters
+                    .Include(c => c.Object)
+                    .FirstOrDefaultAsync(c => c.Id == chapterId);
+
+                if (chapter == null)
+                    return (false, "Раздел не найден", null);
+
+                if (_isLocked || await IsObjectLocked(chapter.ObjectId))
+                    return (false, "Редактирование заблокировано", null);
+
+                var subchapter = new Subchapter
+                {
+                    ChapterId = chapterId,
+                    Name = name,
+                    Number = number,
+                    Id = await _context.Subchapters.MaxAsync(s => (int?)s.Id) + 1 ?? 1
+                };
+
+                await _context.Subchapters.AddAsync(subchapter);
                 await _context.SaveChangesAsync();
-                return (true, $"Подраздел {subchapter.Name} создан");
+                return (true, $"Подраздел {name} создан", subchapter);
             }
             catch (Exception ex)
             {
-                return (false, $"Ошибка: {ex.Message}");
+                return (false, $"Ошибка: {ex.Message}", null);
             }
         }
 
@@ -420,25 +450,25 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         #endregion
 
         #region Работа с видами работ и планами
-        public async Task<(bool Success, string Message)> AddWorkTypeAsync(
-            int subchapterId,
-            string name,
-            int number,
-            string ei)
+        public async Task<(bool Success, string Message, WorkType WorkType)> AddWorkTypeAsync(
+    string name, int number, string ei)
         {
-            var subchapter = await _context.Subchapters
-                .Include(s => s.Chapter)
-                    .ThenInclude(c => c.Object)
-                .FirstOrDefaultAsync(s => s.Id == subchapterId);
-
-            if (subchapter == null)
-                return (false, "Подраздел не найден");
-
-            if (_isLocked || await IsObjectLocked(subchapter.Chapter.ObjectId))
-                return (false, "Редактирование заблокировано");
-
             try
             {
+                int chapterId = await GetCurrentChapterIdAsync();
+                int subchapterId = await GetCurrentSubchapterIdAsync(chapterId);
+
+                var subchapter = await _context.Subchapters
+                    .Include(s => s.Chapter)
+                        .ThenInclude(c => c.Object)
+                    .FirstOrDefaultAsync(s => s.Id == subchapterId);
+
+                if (subchapter == null)
+                    return (false, "Подраздел не найден", null);
+
+                if (_isLocked || await IsObjectLocked(subchapter.Chapter.ObjectId))
+                    return (false, "Редактирование заблокировано", null);
+
                 int workTypeId = await _context.WorkTypes.MaxAsync(w => (int?)w.Id) + 1 ?? 1;
 
                 var workType = new WorkType
@@ -452,11 +482,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
                 await _context.WorkTypes.AddAsync(workType);
                 await _context.SaveChangesAsync();
-                return (true, $"Вид работ {name} добавлен");
+                return (true, $"Вид работ {name} добавлен", workType);
             }
             catch (Exception ex)
             {
-                return (false, $"Ошибка: {ex.Message}");
+                return (false, $"Ошибка: {ex.Message}", null);
             }
         }
 
@@ -496,25 +526,29 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             }
         }
 
-        public async Task<(bool Success, string Message)> AddWorkPlanAsync(
-            int workTypeId,
-            DateTime date,
-            int value)
+        public async Task<(bool Success, string Message, WorkPlan WorkPlan)> AddWorkPlanAsync(
+    DateTime date, int value)
         {
-            var workType = await _context.WorkTypes
-                .Include(w => w.Subchapter)
-                    .ThenInclude(s => s.Chapter)
-                        .ThenInclude(c => c.Object)
-                .FirstOrDefaultAsync(w => w.Id == workTypeId);
-
-            if (workType == null)
-                return (false, "Вид работ не найден");
-
-            if (_isLocked || await IsObjectLocked(workType.Subchapter.Chapter.ObjectId))
-                return (false, "Редактирование заблокировано");
-
             try
             {
+                int chapterId = await GetCurrentChapterIdAsync();
+                int subchapterId = await GetCurrentSubchapterIdAsync(chapterId);
+                int workTypeId = await _context.WorkTypes
+                    .Where(w => w.SubchapterId == subchapterId)
+                    .MaxAsync(w => (int?)w.Id) ?? throw new Exception("Не найден активный вид работ");
+
+                var workType = await _context.WorkTypes
+                    .Include(w => w.Subchapter)
+                        .ThenInclude(s => s.Chapter)
+                            .ThenInclude(c => c.Object)
+                    .FirstOrDefaultAsync(w => w.Id == workTypeId);
+
+                if (workType == null)
+                    return (false, "Вид работ не найден", null);
+
+                if (_isLocked || await IsObjectLocked(workType.Subchapter.Chapter.ObjectId))
+                    return (false, "Редактирование заблокировано", null);
+
                 int workPlanId = await _context.WorkPlans.MaxAsync(wp => (int?)wp.Id) + 1 ?? 1;
 
                 var workPlan = new WorkPlan
@@ -527,11 +561,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
                 await _context.WorkPlans.AddAsync(workPlan);
                 await _context.SaveChangesAsync();
-                return (true, "План работ добавлен");
+                return (true, "План работ добавлен", workPlan);
             }
             catch (Exception ex)
             {
-                return (false, $"Ошибка: {ex.Message}");
+                return (false, $"Ошибка: {ex.Message}", null);
             }
         }
 

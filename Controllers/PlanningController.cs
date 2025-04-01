@@ -7,6 +7,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 {
     [ApiController]
     [Route("api/planning")]
+   
     public class PlanningController : ControllerBase
     {
         private readonly PlanningService _service;
@@ -231,24 +232,17 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             return subchapter != null ? Ok(subchapter) : NotFound();
         }
 
-        [HttpPost("chapters/{chapterId}/subchapters")]
-        public async Task<IActionResult> CreateSubchapter(int chapterId, [FromBody] SubchapterCreateRequest request)
+        [HttpPost("subchapters")]
+        public async Task<IActionResult> CreateSubchapter([FromBody] SubchapterCreateRequest request)
         {
             try
             {
-                var subchapter = new Subchapter
-                {
-                    ChapterId = chapterId,
-                    Name = request.Name,
-                    Number = request.Number
-                };
-
-                var result = await _service.AddSubchapterAsync(subchapter);
+                var result = await _service.AddSubchapterAsync(request.Name, request.Number);
                 return result.Success
-                    ? CreatedAtAction(nameof(GetSubchapter), new { id = subchapter.Id }, new
+                    ? CreatedAtAction(nameof(GetSubchapter), new { id = result.Subchapter.Id }, new
                     {
                         Message = result.Message,
-                        Subchapter = subchapter
+                        Subchapter = result.Subchapter
                     })
                     : BadRequest(new { Message = result.Message });
             }
@@ -302,21 +296,18 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с видами работ и планами
-        [HttpPost("subchapters/{subchapterId}/work-types")]
-        public async Task<IActionResult> AddWorkType(
-            int subchapterId,
-            [FromBody] WorkTypeCreateRequest request)
+        [HttpPost("work-types")]
+        public async Task<IActionResult> AddWorkType([FromBody] WorkTypeCreateRequest request)
         {
             try
             {
-                var result = await _service.AddWorkTypeAsync(
-                    subchapterId,
-                    request.Name,
-                    request.Number,
-                    request.EI);
-
+                var result = await _service.AddWorkTypeAsync(request.Name, request.Number, request.EI);
                 return result.Success
-                    ? Ok(new { Message = result.Message })
+                    ? Ok(new
+                    {
+                        Message = result.Message,
+                        WorkType = result.WorkType
+                    })
                     : BadRequest(new { Message = result.Message });
             }
             catch (Exception ex)
@@ -334,20 +325,18 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 : BadRequest(new { Message = "Не удалось удалить вид работ" });
         }
 
-        [HttpPost("work-types/{workTypeId}/work-plans")]
-        public async Task<IActionResult> AddWorkPlan(
-            int workTypeId,
-            [FromBody] WorkPlanCreateRequest request)
+        [HttpPost("work-plans")]
+        public async Task<IActionResult> AddWorkPlan([FromBody] WorkPlanCreateRequest request)
         {
             try
             {
-                var result = await _service.AddWorkPlanAsync(
-                    workTypeId,
-                    request.Date,
-                    request.Value);
-
+                var result = await _service.AddWorkPlanAsync(request.Date, request.Value);
                 return result.Success
-                    ? Ok(new { Message = result.Message })
+                    ? Ok(new
+                    {
+                        Message = result.Message,
+                        WorkPlan = result.WorkPlan
+                    })
                     : BadRequest(new { Message = result.Message });
             }
             catch (Exception ex)
