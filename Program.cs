@@ -48,12 +48,13 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
                 if (!context.Objects.Any())
                 {
                     context.Objects.AddRange(
-                        new Models.Object { Id = 1, District = "Объект 1", Status="DEAD", Street="Groov"},
-                        new Models.Object { Id = 2, District = "Объект 2", Status="BUILDING", Street="Krupskoi" }
+                        new Models.Object { Id = 1, District = "Московский", Status = "Строится", Street = "Октябрьская 21" },
+                        new Models.Object { Id = 2, District = "Ставропольский", Status = "Строится", Street = "Матрёна-Наздрачёва 1" },
+                        new Models.Object { Id = 3, District = "Питерский", Status = "Строится", Street = "Маршал-Блюхер" }
                     );
                     context.SaveChanges();
                 }
-
+                /*
                 if (!context.Chapters.Any())
                 {
                     var testChapter1 = new Chapter 
@@ -62,7 +63,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
                         Name = "Проектирование", 
                         Number = 1
                     };
-                    
+
                     var testChapter2 = new Chapter 
                     { 
                         ObjectId = 2, 
@@ -81,8 +82,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
                     };
 
                     context.Subchapters.AddRange(testSubchapters);
-                    context.SaveChanges();
-                }
+                context.SaveChanges();
+            }
+                */
             }
         }
     }

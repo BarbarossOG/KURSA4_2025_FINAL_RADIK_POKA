@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35527.113 d17.12
+VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KURSA4_2025_FINAL_RADIK_POKA", "KURSA4_2025_FINAL_RADIK_POKA.csproj", "{4B631FAA-3A28-420A-B145-F15AD05F595B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KASP_KURSA4", "KASP_KURSA4.csproj", "{4B631FAA-3A28-420A-B145-F15AD05F595B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

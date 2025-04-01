@@ -9,9 +9,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Data
 
         // DbSet свойства
         public DbSet<Models.Object> Objects { get; set; }
-        public DbSet<Room> Rooms { get; set; }
-        public DbSet<Floor> Floors { get; set; }
-        public DbSet<Section> Sections { get; set; }
+        public DbSet<GraphicPlanningOfWork> GraphicPlanningsOfWork { get; set; }
         public DbSet<Chapter> Chapters { get; set; }
         public DbSet<Subchapter> Subchapters { get; set; }
         public DbSet<WorkType> WorkTypes { get; set; }
@@ -25,20 +23,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Data
 
         private void ConfigureRelations(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Room>()
-                .HasOne<Models.Object>()
-                .WithMany()
-                .HasForeignKey(r => r.ObjectId);
-
-            modelBuilder.Entity<Floor>()
-                .HasOne<Models.Object>()
-                .WithMany()
-                .HasForeignKey(f => f.ObjectId);
-
-            modelBuilder.Entity<Section>()
-                .HasOne<Models.Object>()
-                .WithMany()
-                .HasForeignKey(s => s.ObjectId);
+           
+            modelBuilder.Entity<GraphicPlanningOfWork>()
+            .HasOne(g => g.Object)
+            .WithMany()
+            .HasForeignKey(g => g.ObjectId);
 
             modelBuilder.Entity<Chapter>()
                 .HasOne<Models.Object>()

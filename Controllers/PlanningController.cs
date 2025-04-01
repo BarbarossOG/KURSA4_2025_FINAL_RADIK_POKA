@@ -20,7 +20,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 
         #region Управление блокировкой
         [HttpPost("lock/{objectId}")]
-        public IActionResult LockPlanning(int objectId)
+        public async Task<IActionResult> LockPlanning(int objectId)
         {
             var obj = _service.GetObjectById(objectId);
             if (obj == null)
@@ -28,14 +28,14 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 return BadRequest(new { Message = "Объект не найден" });
             }
 
-            _service.LockObject(objectId);
+            await _service.LockObject(objectId);
             _service.LockChanges();
 
-            return Ok(new { Message = $"Объект {objectId} заблокирован" });
+            return Ok(new { Message = $"Редактирование объекта {objectId} заблокировано" });
         }
 
         [HttpPost("unlock/{objectId}")]
-        public IActionResult UnlockPlanning(int objectId)
+        public async Task<IActionResult> UnlockPlanning(int objectId)
         {
             var obj = _service.GetObjectById(objectId);
             if (obj == null)
@@ -43,14 +43,14 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 return BadRequest(new { Message = "Объект не найден" });
             }
 
-            _service.UnlockObject(objectId);
+            await _service.UnlockObject(objectId);
             _service.UnlockChanges();
 
-            return Ok(new { Message = $"Объект {objectId} разблокирован" });
+            return Ok(new { Message = $"Редактирование объекта {objectId} разблокировано" });
         }
 
         [HttpGet("lock-status/{objectId}")]
-        public IActionResult GetLockStatus(int objectId)
+        public async Task<IActionResult> GetLockStatus(int objectId)
         {
             var obj = _service.GetObjectById(objectId);
             if (obj == null)
@@ -58,347 +58,334 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 return NotFound(new { Message = "Объект не найден" });
             }
 
-            bool isLocked = _service.IsObjectLocked(objectId);
-            return Ok(new { ObjectId = objectId, IsLocked = isLocked });
+            bool isObjectLocked = await _service.IsObjectLocked(objectId);
+            bool isGlobalLocked = _service.IsLocked();
+
+            return Ok(new
+            {
+                Message = $"Статус редактирования для объекта {objectId}",
+                IsLocked = isObjectLocked || isGlobalLocked
+            });
         }
         #endregion
 
-
         [HttpPost("create-work-schedule")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateWorkSchedule(
-        [FromQuery] int objectId
-        // [FromQuery] string district,
-        // [FromQuery] string street
-        // [FromQuery] string status,
-        // [FromQuery] int? chapterId,
-        // [FromQuery] string? chapterName,
-        // [FromQuery] int? chapterNumber,
-        // [FromQuery] int? subchapterId,
-        // [FromQuery] string? subchapterName,
-        // [FromQuery] int? subchapterNumber,
-        // [FromQuery] string workName,
-        // [FromQuery] int workNumber,
-        // [FromQuery] string workEI,
-        // [FromQuery] DateTime workDate,
-        // [FromQuery] int workValue
-        )
+        public async Task<IActionResult> CreateWorkSchedule([FromQuery] int objectId)
         {
             try
             {
-                // Проверка обязательных полей
-                if (objectId <= 0)
-                    return BadRequest(new { Message = "Некорректный ID объекта" });
-                // if (string.IsNullOrEmpty(district))
-                    // return BadRequest("Не указан район (district)");
-                // if (string.IsNullOrEmpty(street))
-                    // return BadRequest("Не указана улица (street)");
-                // if (string.IsNullOrEmpty(status))
-                    // return BadRequest("Не указан статус (status)");
 
-                // if (!chapterId.HasValue && (string.IsNullOrEmpty(chapterName) || !chapterNumber.HasValue))
-                    // return BadRequest("Для нового раздела необходимо указать chapterName и chapterNumber");
-
-                // if (!subchapterId.HasValue && (string.IsNullOrEmpty(subchapterName) || !subchapterNumber.HasValue))
-                    // return BadRequest("Для нового подраздела необходимо указать subchapterName и subchapterNumber");
-
-                var result = await _service.CreateWorkScheduleAsync(
-                    objectId
-                    // district,
-                    // street
-                    // status,
-                    // chapterId,
-                    // chapterName,
-                    // chapterNumber,
-                    // subchapterId,
-                    // subchapterName,
-                    // subchapterNumber,
-                    // workName,
-                    // workNumber,
-                    // workEI,
-                    // workDate,
-                    // workValue
-                    );
-                return result
-                    ? Ok("График работ успешно создан")
-                    : BadRequest("Не удалось создать график работ");
+                var result = await _service.CreateWorkScheduleAsync(objectId);
+                return result.Success
+                    ? Ok(new { Message = result.Message, PlanId = result.PlanId })
+                    : BadRequest(new { Message = result.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Ошибка при создании графика работ: {ex.Message}");
-            }
-        }
-
-
-        // Получение плана-графика по ID объекта
-        [HttpGet("work-schedule")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetWorkScheduleByObjectId([FromQuery] int objectId)
-        {
-            try
-            {
-                var result = await _service.GetWorkScheduleByObjectIdAsync(objectId);
-
-                if (result is { } && result.GetType().GetProperty("Message") == null)
-                    return Ok(result);
-
-                return NotFound(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Ошибка при получении плана-графика: {ex.Message}");
-            }
-        }
-
-        // Удаление плана-графика по ID объекта
-        [HttpDelete("work-schedule")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> DeleteWorkScheduleByObjectId([FromQuery] int objectId)
-        {
-            try
-            {
-                var result = await _service.DeleteWorkScheduleByObjectIdAsync(objectId);
-
-                return result
-                    ? Ok($"План-график для объекта {objectId} успешно удалён")
-                    : BadRequest("Не удалось удалить план-график (возможно, редактирование заблокировано)");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Ошибка при удалении плана-графика: {ex.Message}");
+                return StatusCode(500, new { Message = $"Ошибка при создании графика работ: {ex.Message}" });
             }
         }
 
         #region Работа с разделами
-        // [HttpGet("chapters")]
-        // public async Task<ActionResult<IEnumerable<Chapter>>> GetAllChapters()
-        // {
-        //     return Ok(await _service.GetAllChaptersAsync());
-        // }
+        [HttpGet("chapters")]
+        public async Task<IActionResult> GetAllChapters()
+        {
+            try
+            {
+                var chapters = await _service.GetAllChaptersAsync();
+                return Ok(chapters);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = $"Ошибка при получении разделов: {ex.Message}" });
+            }
+        }
 
         [HttpGet("chapters/{id}")]
-        public async Task<ActionResult<Chapter>> GetChapter(int id)
+        public async Task<IActionResult> GetChapter(int id)
         {
             var chapter = await _service.GetChapterByIdAsync(id);
             return chapter != null ? Ok(chapter) : NotFound();
         }
 
-        [HttpPost("create-chapters")]
-        public async Task<ActionResult<Chapter>> CreateChapter([FromBody] Chapter chapter)
+        [HttpPost("objects/chapters")]
+
+        public async Task<IActionResult> CreateChapter([FromBody] ChapterCreateRequest request)
         {
             try
             {
-                await _service.AddChapterAsync(chapter);
-                return CreatedAtAction(nameof(GetChapter), new { id = chapter.Id }, chapter);
+                // Получаем objectId через сервис
+                int objectId = await _service.GetCurrentObjectIdAsync();
+
+                var chapter = new Chapter
+                {
+                    ObjectId = objectId,
+                    Name = request.Name,
+                    Number = request.Number
+                };
+
+                var result = await _service.AddChapterAsync(chapter);
+                return result.Success
+                    ? CreatedAtAction(nameof(GetChapter), new { id = chapter.Id }, new
+                    {
+                        Message = result.Message,
+                        Chapter = chapter
+                    })
+                    : BadRequest(new { Message = result.Message });
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return StatusCode(500, new { Message = ex.Message });
             }
         }
 
+
         [HttpPut("chapters/{id}")]
-        public async Task<IActionResult> UpdateChapter(int id, [FromBody] Chapter chapter)
+        public async Task<IActionResult> UpdateChapter(int id, [FromBody] ChapterUpdateRequest request)
         {
-            if (id != chapter.Id) return BadRequest();
-            return await _service.UpdateChapterAsync(id, chapter)
+            var success = await _service.UpdateChapterAsync(id, new Chapter
+            {
+                Id = id,
+                Name = request.Name,
+                Number = request.Number
+            });
+
+            return success
                 ? NoContent()
-                : NotFound();
+                : NotFound(new { Message = "Раздел не найден или редактирование заблокировано" });
         }
 
         [HttpDelete("chapters/{id}")]
         public async Task<IActionResult> DeleteChapter(int id)
         {
-            return await _service.DeleteChapterAsync(id)
+            var success = await _service.DeleteChapterAsync(id);
+            return success
                 ? NoContent()
-                : NotFound();
+                : NotFound(new { Message = "Раздел не найден или редактирование заблокировано" });
         }
 
         [HttpPost("chapters/reorder")]
         public async Task<IActionResult> ReorderChapters([FromBody] List<int> newOrder)
         {
-            return await _service.ReorderChaptersAsync(newOrder)
-                ? NoContent()
-                : BadRequest("Неверный порядок или заблокировано");
+            var result = await _service.ReorderChaptersAsync(newOrder);
+            return result.Success
+                ? Ok(new { Message = result.Message })
+                : BadRequest(new { Message = result.Message });
         }
         #endregion
 
         #region Работа с подразделами
         [HttpGet("chapters/{chapterId}/subchapters")]
-        public async Task<ActionResult<IEnumerable<Subchapter>>> GetSubchapters(int chapterId)
+        public async Task<IActionResult> GetSubchapters(int chapterId)
         {
-            return Ok(await _service.GetSubchaptersByChapterAsync(chapterId));
+            try
+            {
+                var subchapters = await _service.GetSubchaptersByChapterAsync(chapterId);
+                return Ok(subchapters);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = $"Ошибка при получении подразделов: {ex.Message}" });
+            }
         }
 
         [HttpGet("subchapters/{id}")]
-        public async Task<ActionResult<Subchapter>> GetSubchapter(int id)
+        public async Task<IActionResult> GetSubchapter(int id)
         {
             var subchapter = await _service.GetSubchapterByIdAsync(id);
             return subchapter != null ? Ok(subchapter) : NotFound();
         }
 
-        [HttpPost("subchapters")]
-        public async Task<ActionResult<Subchapter>> CreateSubchapter([FromBody] Subchapter subchapter)
+        [HttpPost("chapters/{chapterId}/subchapters")]
+        public async Task<IActionResult> CreateSubchapter(int chapterId, [FromBody] SubchapterCreateRequest request)
         {
             try
             {
-                await _service.AddSubchapterAsync(subchapter);
-                return CreatedAtAction(nameof(GetSubchapter), new { id = subchapter.Id }, subchapter);
+                var subchapter = new Subchapter
+                {
+                    ChapterId = chapterId,
+                    Name = request.Name,
+                    Number = request.Number
+                };
+
+                var result = await _service.AddSubchapterAsync(subchapter);
+                return result.Success
+                    ? CreatedAtAction(nameof(GetSubchapter), new { id = subchapter.Id }, new
+                    {
+                        Message = result.Message,
+                        Subchapter = subchapter
+                    })
+                    : BadRequest(new { Message = result.Message });
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return StatusCode(500, new { Message = $"Ошибка при создании подраздела: {ex.Message}" });
             }
         }
 
         [HttpPut("subchapters/{id}")]
-        public async Task<IActionResult> UpdateSubchapter(int id, [FromBody] Subchapter subchapter)
+        public async Task<IActionResult> UpdateSubchapter(int id, [FromBody] SubchapterUpdateRequest request)
         {
-            if (id != subchapter.Id) return BadRequest();
-            return await _service.UpdateSubchapterAsync(id, subchapter)
+            var success = await _service.UpdateSubchapterAsync(id, new Subchapter
+            {
+                Id = id,
+                Name = request.Name,
+                Number = request.Number
+            });
+
+            return success
                 ? NoContent()
-                : NotFound();
+                : NotFound(new { Message = "Подраздел не найден или редактирование заблокировано" });
         }
 
         [HttpDelete("subchapters/{id}")]
         public async Task<IActionResult> DeleteSubchapter(int id)
         {
-            return await _service.DeleteSubchapterAsync(id)
+            var success = await _service.DeleteSubchapterAsync(id);
+            return success
                 ? NoContent()
-                : NotFound();
+                : NotFound(new { Message = "Подраздел не найден или редактирование заблокировано" });
         }
 
         [HttpPost("chapters/{chapterId}/subchapters/reorder")]
         public async Task<IActionResult> ReorderSubchapters(int chapterId, [FromBody] List<int> newOrder)
         {
-            return await _service.ReorderSubchaptersAsync(chapterId, newOrder)
-                ? NoContent()
-                : BadRequest("Неверный порядок или заблокировано");
+            var result = await _service.ReorderSubchaptersAsync(chapterId, newOrder);
+            return result.Success
+                ? Ok(new { Message = result.Message })
+                : BadRequest(new { Message = result.Message });
         }
 
         [HttpPost("subchapters/{id}/move/{newChapterId}")]
         public async Task<IActionResult> MoveSubchapter(int id, int newChapterId)
         {
-            return await _service.MoveSubchapterAsync(id, newChapterId)
+            var success = await _service.MoveSubchapterAsync(id, newChapterId);
+            return success
                 ? NoContent()
-                : BadRequest("Не удалось переместить или заблокировано");
+                : BadRequest(new { Message = "Не удалось переместить или редактирование заблокировано" });
         }
         #endregion
 
         #region Работа с видами работ и планами
         [HttpPost("subchapters/{subchapterId}/work-types")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> AddWorkType(
-        int subchapterId,
-        [FromQuery] int workTypeId, // Добавляем параметр для ID
-        [FromQuery] string name,
-        [FromQuery] int number,
-        [FromQuery] string ei)
+            int subchapterId,
+            [FromBody] WorkTypeCreateRequest request)
         {
             try
             {
                 var result = await _service.AddWorkTypeAsync(
-                    workTypeId, // Передаем ID
                     subchapterId,
-                    name,
-                    number,
-                    ei);
+                    request.Name,
+                    request.Number,
+                    request.EI);
 
-                return result
-                    ? Ok(new { Message = "Вид работ успешно добавлен" })
-                    : BadRequest("Не удалось добавить вид работ (возможно, ID уже существует или редактирование заблокировано)");
+                return result.Success
+                    ? Ok(new { Message = result.Message })
+                    : BadRequest(new { Message = result.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Ошибка при добавлении вида работ: {ex.Message}");
+                return StatusCode(500, new { Message = $"Ошибка при добавлении вида работ: {ex.Message}" });
             }
         }
 
         [HttpDelete("work-types/{workTypeId}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> DeleteWorkType(int workTypeId)
         {
-            try
-            {
-                var result = await _service.DeleteWorkTypeAsync(workTypeId);
-                return result
-                    ? Ok(new { Message = "Вид работ успешно удалён" })
-                    : BadRequest("Не удалось удалить вид работ (возможно, редактирование заблокировано)");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Ошибка при удалении вида работ: {ex.Message}");
-            }
+            var success = await _service.DeleteWorkTypeAsync(workTypeId);
+            return success
+                ? Ok(new { Message = "Вид работ успешно удалён" })
+                : BadRequest(new { Message = "Не удалось удалить вид работ" });
         }
 
         [HttpPost("work-types/{workTypeId}/work-plans")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> AddWorkPlan(
-        int workTypeId,
-        [FromQuery] int workPlanId, // Новый параметр
-        [FromQuery] DateTime date,
-        [FromQuery] int value)
+            int workTypeId,
+            [FromBody] WorkPlanCreateRequest request)
         {
             try
             {
                 var result = await _service.AddWorkPlanAsync(
-                    workPlanId,
                     workTypeId,
-                    date,
-                    value);
+                    request.Date,
+                    request.Value);
 
-                return result
-                    ? Ok(new { Message = "План работ успешно добавлен" })
-                    : BadRequest("Не удалось добавить план работ (возможно, ID уже существует или редактирование заблокировано)");
+                return result.Success
+                    ? Ok(new { Message = result.Message })
+                    : BadRequest(new { Message = result.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Ошибка при добавлении плана работ: {ex.Message}");
+                return StatusCode(500, new { Message = $"Ошибка при добавлении плана работ: {ex.Message}" });
             }
         }
 
         [HttpDelete("work-plans/{workPlanId}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> DeleteWorkPlan(int workPlanId)
         {
-            try
-            {
-                var result = await _service.DeleteWorkPlanAsync(workPlanId);
-                return result
-                    ? Ok(new { Message = "План работ успешно удалён" })
-                    : BadRequest("Не удалось удалить план работ (возможно, редактирование заблокировано)");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Ошибка при удалении плана работ: {ex.Message}");
-            }
+            var success = await _service.DeleteWorkPlanAsync(workPlanId);
+            return success
+                ? Ok(new { Message = "План работ успешно удалён" })
+                : BadRequest(new { Message = "Не удалось удалить план работ" });
         }
         #endregion
+
         [HttpGet("report")]
         public async Task<IActionResult> GenerateReport(
-        [FromQuery] int objectId,
-        [FromQuery] DateTime startDate,
-        [FromQuery] DateTime endDate)
+            [FromQuery] int objectId,
+            [FromQuery] DateTime startDate,
+            [FromQuery] DateTime endDate)
         {
             try
             {
                 var pdfBytes = await _reportService.GenerateWorkSchedulePdfAsync(objectId, startDate, endDate);
-
                 return File(pdfBytes, "application/pdf",
                     $"WorkSchedule_{objectId}_{startDate:yyyyMMdd}-{endDate:yyyyMMdd}.pdf");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Ошибка при генерации отчета: {ex.Message}");
+                return StatusCode(500, new { Message = $"Ошибка при генерации отчета: {ex.Message}" });
             }
         }
-
     }
+
+    public class ChapterCreateRequest
+    {
+        public string Name { get; set; }
+        public int Number { get; set; }
+    }
+
+    public class ChapterUpdateRequest
+    {
+        public string Name { get; set; }
+        public int Number { get; set; }
+    }
+
+    public class SubchapterCreateRequest
+    {
+        public string Name { get; set; }
+        public int Number { get; set; }
+    }
+
+    public class SubchapterUpdateRequest
+    {
+        public string Name { get; set; }
+        public int Number { get; set; }
+    }
+
+    public class WorkTypeCreateRequest
+    {
+        public string Name { get; set; }
+        public int Number { get; set; }
+        public string EI { get; set; }
+    }
+      
+    public class WorkPlanCreateRequest
+    {
+        public DateTime Date { get; set; }
+        public int Value { get; set; }
+    }
+
+
 }
