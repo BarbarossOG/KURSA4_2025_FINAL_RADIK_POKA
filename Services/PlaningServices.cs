@@ -20,7 +20,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public bool IsLocked() => _isLocked;
         #endregion
 
-
         public async Task<int> GetCurrentObjectIdAsync()
         {
             var lastPlan = await _context.GraphicPlanningsOfWork
@@ -64,6 +63,85 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 return (false, 0, "Ошибка при создании плана работ");
             }
         }
+
+        public async Task<GraphicPlanningOfWork?> GetWorkScheduleByIdAsync(int planId)
+        {
+            return await _context.GraphicPlanningsOfWork
+                .Include(g => g.Object)
+                .FirstOrDefaultAsync(g => g.Id == planId);
+        }
+
+        public async Task<(bool Success, string Message)> DeleteWorkScheduleAsync(int planId)
+        {
+            if (_isLocked)
+                return (false, "Редактирование заблокировано");
+
+            var plan = await _context.GraphicPlanningsOfWork
+                .Include(g => g.Object)
+                .FirstOrDefaultAsync(g => g.Id == planId);
+
+            if (plan == null)
+                return (false, "План не найден");
+
+            if (plan.Object.Status == "LOCKED")
+                return (false, "Объект заблокирован");
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Получаем все связанные сущности через навигационные свойства
+                var chapters = await _context.Chapters
+                    .Include(c => c.Subchapters)
+                        .ThenInclude(s => s.WorkTypes)
+                            .ThenInclude(w => w.WorkPlans)
+                    .Where(c => c.ObjectId == plan.ObjectId)
+                    .ToListAsync();
+
+                // Удаляем все WorkPlans
+                foreach (var chapter in chapters)
+                {
+                    foreach (var subchapter in chapter.Subchapters)
+                    {
+                        foreach (var workType in subchapter.WorkTypes)
+                        {
+                            _context.WorkPlans.RemoveRange(workType.WorkPlans);
+                        }
+                    }
+                }
+
+                // Удаляем WorkTypes
+                foreach (var chapter in chapters)
+                {
+                    foreach (var subchapter in chapter.Subchapters)
+                    {
+                        _context.WorkTypes.RemoveRange(subchapter.WorkTypes);
+                    }
+                }
+
+                // Удаляем Subchapters
+                foreach (var chapter in chapters)
+                {
+                    _context.Subchapters.RemoveRange(chapter.Subchapters);
+                }
+
+                // Удаляем Chapters
+                _context.Chapters.RemoveRange(chapters);
+
+                // Удаляем сам план
+                _context.GraphicPlanningsOfWork.Remove(plan);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return (true, $"План {planId} успешно удалён");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return (false, $"Ошибка при удалении плана: {ex.Message}");
+            }
+        }
         #endregion
 
         #region Работа с объектами
@@ -104,16 +182,19 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         {
             int objectId = await GetCurrentObjectIdAsync();
             return await _context.Chapters
+                .Include(c => c.Object)
                 .Where(c => c.ObjectId == objectId)
                 .OrderBy(c => c.Number)
                 .ToListAsync();
         }
-
+        
         public async Task<Chapter?> GetChapterByIdAsync(int id)
         {
-            return await _context.Chapters.FirstOrDefaultAsync(c => c.Id == id);
+            return await _context.Chapters
+                .Include(c => c.Object)
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
-
+        
 
         public async Task<(bool Success, string Message)> AddChapterAsync(Chapter chapter)
         {
@@ -139,7 +220,10 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<bool> UpdateChapterAsync(int id, Chapter updatedChapter)
         {
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == id);
+            var chapter = await _context.Chapters
+                .Include(c => c.Object)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
             if (chapter == null) return false;
 
             if (_isLocked || await IsObjectLocked(chapter.ObjectId))
@@ -153,7 +237,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<bool> DeleteChapterAsync(int id)
         {
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == id);
+            var chapter = await _context.Chapters
+                .Include(c => c.Object)
+                .Include(c => c.Subchapters)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
             if (chapter == null) return false;
 
             if (_isLocked || await IsObjectLocked(chapter.ObjectId))
@@ -195,6 +283,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public async Task<IEnumerable<Subchapter>> GetSubchaptersByChapterAsync(int chapterId)
         {
             return await _context.Subchapters
+                .Include(s => s.Chapter)
                 .Where(s => s.ChapterId == chapterId)
                 .OrderBy(s => s.Number)
                 .ToListAsync();
@@ -202,12 +291,17 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<Subchapter?> GetSubchapterByIdAsync(int id)
         {
-            return await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == id);
+            return await _context.Subchapters
+                .Include(s => s.Chapter)
+                .FirstOrDefaultAsync(s => s.Id == id);
         }
 
         public async Task<(bool Success, string Message)> AddSubchapterAsync(Subchapter subchapter)
         {
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
+            var chapter = await _context.Chapters
+                .Include(c => c.Object)
+                .FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
+
             if (chapter == null)
                 return (false, "Раздел не найден");
 
@@ -229,13 +323,14 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<bool> UpdateSubchapterAsync(int id, Subchapter updatedSubchapter)
         {
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == id);
+            var subchapter = await _context.Subchapters
+                .Include(s => s.Chapter)
+                    .ThenInclude(c => c.Object)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (subchapter == null) return false;
 
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-            if (chapter == null) return false;
-
-            if (_isLocked || await IsObjectLocked(chapter.ObjectId))
+            if (_isLocked || await IsObjectLocked(subchapter.Chapter.ObjectId))
                 return false;
 
             subchapter.Name = updatedSubchapter.Name;
@@ -246,13 +341,15 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<bool> DeleteSubchapterAsync(int id)
         {
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == id);
+            var subchapter = await _context.Subchapters
+                .Include(s => s.Chapter)
+                    .ThenInclude(c => c.Object)
+                .Include(s => s.WorkTypes)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (subchapter == null) return false;
 
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-            if (chapter == null) return false;
-
-            if (_isLocked || await IsObjectLocked(chapter.ObjectId))
+            if (_isLocked || await IsObjectLocked(subchapter.Chapter.ObjectId))
                 return false;
 
             _context.Subchapters.Remove(subchapter);
@@ -262,7 +359,10 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<(bool Success, string Message)> ReorderSubchaptersAsync(int chapterId, List<int> newOrder)
         {
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == chapterId);
+            var chapter = await _context.Chapters
+                .Include(c => c.Object)
+                .FirstOrDefaultAsync(c => c.Id == chapterId);
+
             if (chapter == null)
                 return (false, "Раздел не найден");
 
@@ -290,14 +390,20 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<bool> MoveSubchapterAsync(int subchapterId, int newChapterId)
         {
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == subchapterId);
+            var subchapter = await _context.Subchapters
+                .Include(s => s.Chapter)
+                    .ThenInclude(c => c.Object)
+                .FirstOrDefaultAsync(s => s.Id == subchapterId);
+
             if (subchapter == null) return false;
 
-            var oldChapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-            var newChapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == newChapterId);
-            if (oldChapter == null || newChapter == null) return false;
+            var newChapter = await _context.Chapters
+                .Include(c => c.Object)
+                .FirstOrDefaultAsync(c => c.Id == newChapterId);
 
-            if (oldChapter.ObjectId != newChapter.ObjectId)
+            if (newChapter == null) return false;
+
+            if (subchapter.Chapter.ObjectId != newChapter.ObjectId)
                 return false;
 
             if (_isLocked || await IsObjectLocked(newChapter.ObjectId))
@@ -320,15 +426,15 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             int number,
             string ei)
         {
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == subchapterId);
+            var subchapter = await _context.Subchapters
+                .Include(s => s.Chapter)
+                    .ThenInclude(c => c.Object)
+                .FirstOrDefaultAsync(s => s.Id == subchapterId);
+
             if (subchapter == null)
                 return (false, "Подраздел не найден");
 
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-            if (chapter == null)
-                return (false, "Раздел не найден");
-
-            if (_isLocked || await IsObjectLocked(chapter.ObjectId))
+            if (_isLocked || await IsObjectLocked(subchapter.Chapter.ObjectId))
                 return (false, "Редактирование заблокировано");
 
             try
@@ -356,16 +462,15 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<bool> DeleteWorkTypeAsync(int workTypeId)
         {
-            var workType = await _context.WorkTypes.FirstOrDefaultAsync(w => w.Id == workTypeId);
+            var workType = await _context.WorkTypes
+                .Include(w => w.Subchapter)
+                    .ThenInclude(s => s.Chapter)
+                        .ThenInclude(c => c.Object)
+                .FirstOrDefaultAsync(w => w.Id == workTypeId);
+
             if (workType == null) return false;
 
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == workType.SubchapterId);
-            if (subchapter == null) return false;
-
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-            if (chapter == null) return false;
-
-            if (_isLocked || await IsObjectLocked(chapter.ObjectId))
+            if (_isLocked || await IsObjectLocked(workType.Subchapter.Chapter.ObjectId))
                 return false;
 
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -396,19 +501,16 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             DateTime date,
             int value)
         {
-            var workType = await _context.WorkTypes.FirstOrDefaultAsync(w => w.Id == workTypeId);
+            var workType = await _context.WorkTypes
+                .Include(w => w.Subchapter)
+                    .ThenInclude(s => s.Chapter)
+                        .ThenInclude(c => c.Object)
+                .FirstOrDefaultAsync(w => w.Id == workTypeId);
+
             if (workType == null)
                 return (false, "Вид работ не найден");
 
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == workType.SubchapterId);
-            if (subchapter == null)
-                return (false, "Подраздел не найден");
-
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-            if (chapter == null)
-                return (false, "Раздел не найден");
-
-            if (_isLocked || await IsObjectLocked(chapter.ObjectId))
+            if (_isLocked || await IsObjectLocked(workType.Subchapter.Chapter.ObjectId))
                 return (false, "Редактирование заблокировано");
 
             try
@@ -435,27 +537,21 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<bool> DeleteWorkPlanAsync(int workPlanId)
         {
-            var workPlan = await _context.WorkPlans.FirstOrDefaultAsync(wp => wp.Id == workPlanId);
+            var workPlan = await _context.WorkPlans
+                .Include(wp => wp.WorkType)
+                    .ThenInclude(w => w.Subchapter)
+                        .ThenInclude(s => s.Chapter)
+                            .ThenInclude(c => c.Object)
+                .FirstOrDefaultAsync(wp => wp.Id == workPlanId);
+
             if (workPlan == null) return false;
 
-            var workType = await _context.WorkTypes.FirstOrDefaultAsync(w => w.Id == workPlan.WorkTypeId);
-            if (workType == null) return false;
-
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == workType.SubchapterId);
-            if (subchapter == null) return false;
-
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == subchapter.ChapterId);
-            if (chapter == null) return false;
-
-            if (_isLocked || await IsObjectLocked(chapter.ObjectId))
+            if (_isLocked || await IsObjectLocked(workPlan.WorkType.Subchapter.Chapter.ObjectId))
                 return false;
 
             try
             {
-                await _context.WorkPlans
-                    .Where(wp => wp.Id == workPlanId)
-                    .ExecuteDeleteAsync();
-
+                _context.WorkPlans.Remove(workPlan);
                 await _context.SaveChangesAsync();
                 return true;
             }

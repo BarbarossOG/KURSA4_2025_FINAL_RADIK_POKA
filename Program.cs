@@ -54,37 +54,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
                     );
                     context.SaveChanges();
                 }
-                /*
-                if (!context.Chapters.Any())
-                {
-                    var testChapter1 = new Chapter 
-                    { 
-                        ObjectId = 1, // Ссылается на существующий Object
-                        Name = "Проектирование", 
-                        Number = 1
-                    };
-
-                    var testChapter2 = new Chapter 
-                    { 
-                        ObjectId = 2, 
-                        Name = "Строительство", 
-                        Number = 2 
-                    };
-
-                    context.Chapters.AddRange(testChapter1, testChapter2);
-                    
-                    var testSubchapters = new List<Subchapter>
-                    {
-                        new() { ChapterId = testChapter1.Id, Name = "Разработка чертежей", Number = 1 },
-                        new() { ChapterId = testChapter1.Id, Name = "Согласование документации", Number = 2 },
-                        new() { ChapterId = testChapter2.Id, Name = "Земляные работы", Number = 1 },
-                        new() { ChapterId = testChapter2.Id, Name = "Монтаж конструкций", Number = 2 }
-                    };
-
-                    context.Subchapters.AddRange(testSubchapters);
-                context.SaveChanges();
-            }
-                */
             }
         }
     }

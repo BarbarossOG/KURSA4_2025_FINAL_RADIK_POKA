@@ -69,12 +69,12 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
         #endregion
 
+        #region Работа с планами графиков
         [HttpPost("create-work-schedule")]
         public async Task<IActionResult> CreateWorkSchedule([FromQuery] int objectId)
         {
             try
             {
-
                 var result = await _service.CreateWorkScheduleAsync(objectId);
                 return result.Success
                     ? Ok(new { Message = result.Message, PlanId = result.PlanId })
@@ -85,6 +85,39 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 return StatusCode(500, new { Message = $"Ошибка при создании графика работ: {ex.Message}" });
             }
         }
+
+        [HttpGet("work-schedules/{planId}")]
+        public async Task<IActionResult> GetWorkSchedule(int planId)
+        {
+            try
+            {
+                var plan = await _service.GetWorkScheduleByIdAsync(planId);
+                return plan != null
+                    ? Ok(plan)
+                    : NotFound(new { Message = "План не найден" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = $"Ошибка при получении плана: {ex.Message}" });
+            }
+        }
+
+        [HttpDelete("work-schedules/{planId}")]
+        public async Task<IActionResult> DeleteWorkSchedule(int planId)
+        {
+            try
+            {
+                var result = await _service.DeleteWorkScheduleAsync(planId);
+                return result.Success
+                    ? Ok(new { Message = result.Message })
+                    : BadRequest(new { Message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = $"Ошибка при удалении плана: {ex.Message}" });
+            }
+        }
+        #endregion
 
         #region Работа с разделами
         [HttpGet("chapters")]
@@ -101,12 +134,14 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
+        
         [HttpGet("chapters/{id}")]
         public async Task<IActionResult> GetChapter(int id)
         {
             var chapter = await _service.GetChapterByIdAsync(id);
             return chapter != null ? Ok(chapter) : NotFound();
         }
+        
 
         [HttpPost("objects/chapters")]
 

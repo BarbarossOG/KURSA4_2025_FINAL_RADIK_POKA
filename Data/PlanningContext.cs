@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using KURSA4_2025_FINAL_RADIK_POKA.Models;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace KURSA4_2025_FINAL_RADIK_POKA.Data
 {
@@ -20,35 +21,40 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Data
             // Настройка связей
             ConfigureRelations(modelBuilder);
         }
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder
+                .UseInMemoryDatabase("PlanningDatabase")
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
+        }
 
         private void ConfigureRelations(ModelBuilder modelBuilder)
         {
-           
-            modelBuilder.Entity<GraphicPlanningOfWork>()
-            .HasOne(g => g.Object)
-            .WithMany()
-            .HasForeignKey(g => g.ObjectId);
 
             modelBuilder.Entity<Chapter>()
-                .HasOne<Models.Object>()
+                .HasOne(c => c.Object)
                 .WithMany()
                 .HasForeignKey(c => c.ObjectId);
 
             modelBuilder.Entity<Subchapter>()
-                .HasOne<Chapter>()
-                .WithMany()
+                .HasOne(s => s.Chapter)
+                .WithMany(c => c.Subchapters)
                 .HasForeignKey(s => s.ChapterId);
 
             modelBuilder.Entity<WorkType>()
-                .HasOne<Subchapter>()
-                .WithMany()
-                .HasForeignKey(w => w.SubchapterId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .HasOne(w => w.Subchapter)
+                .WithMany(s => s.WorkTypes)
+                .HasForeignKey(w => w.SubchapterId);
 
             modelBuilder.Entity<WorkPlan>()
-                .HasOne<WorkType>()
+                .HasOne(wp => wp.WorkType)
+                .WithMany(w => w.WorkPlans)
+                .HasForeignKey(wp => wp.WorkTypeId);
+
+            modelBuilder.Entity<GraphicPlanningOfWork>()
+                .HasOne(g => g.Object)
                 .WithMany()
-                .HasForeignKey(w => w.WorkTypeId);
+                .HasForeignKey(g => g.ObjectId);
 
         }
     }
