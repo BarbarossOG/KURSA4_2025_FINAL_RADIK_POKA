@@ -7,7 +7,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 {
     [ApiController]
     [Route("api/planning")]
-   
     public class PlanningController : ControllerBase
     {
         private readonly PlanningService _service;
@@ -20,74 +19,79 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         #region Управление блокировкой
-        [HttpPost("lock/{objectId}")]
-        public async Task<IActionResult> LockPlanning(int objectId)
+        [HttpPost("plans/{planId}/lock")]
+        public async Task<IActionResult> LockPlan(int planId)
         {
-            var obj = _service.GetObjectById(objectId);
-            if (obj == null)
-            {
-                return BadRequest(new { Message = "Объект не найден" });
-            }
-
-            await _service.LockObject(objectId);
-            _service.LockChanges();
-
-            return Ok(new { Message = $"Редактирование объекта {objectId} заблокировано" });
+            var success = await _service.LockPlan(planId);
+            return success
+                ? Ok(new { Message = $"План {planId} заблокирован" })
+                : BadRequest(new { Message = "Ошибка блокировки" });
         }
 
-        [HttpPost("unlock/{objectId}")]
-        public async Task<IActionResult> UnlockPlanning(int objectId)
+        [HttpPost("plans/{planId}/unlock")]
+        public async Task<IActionResult> UnlockPlan(int planId)
         {
-            var obj = _service.GetObjectById(objectId);
-            if (obj == null)
-            {
-                return BadRequest(new { Message = "Объект не найден" });
-            }
-
-            await _service.UnlockObject(objectId);
-            _service.UnlockChanges();
-
-            return Ok(new { Message = $"Редактирование объекта {objectId} разблокировано" });
+            var success = await _service.UnlockPlan(planId);
+            return success
+                ? Ok(new { Message = $"План {planId} разблокирован" })
+                : BadRequest(new { Message = "Ошибка разблокировки" });
         }
 
-        [HttpGet("lock-status/{objectId}")]
-        public async Task<IActionResult> GetLockStatus(int objectId)
+        [HttpGet("plans/{planId}/lock-status")]
+        public async Task<IActionResult> GetLockStatus(int planId)
         {
-            var obj = _service.GetObjectById(objectId);
-            if (obj == null)
-            {
-                return NotFound(new { Message = "Объект не найден" });
-            }
-
-            bool isObjectLocked = await _service.IsObjectLocked(objectId);
+            bool isPlanLocked = await _service.IsPlanLocked(planId);
             bool isGlobalLocked = _service.IsLocked();
 
             return Ok(new
             {
-                Message = $"Статус редактирования для объекта {objectId}",
-                IsLocked = isObjectLocked || isGlobalLocked
+                Message = $"Статус редактирования для плана {planId}",
+                IsLocked = isPlanLocked || isGlobalLocked
             });
         }
         #endregion
 
-        #region Работа с планами графиков
-        [HttpPost("create-work-schedule")]
-        public async Task<IActionResult> CreateWorkSchedule([FromQuery] int objectId)
+        #region Работа с версиями планов
+        [HttpPost("objects/{objectId}/plans")]
+        public async Task<IActionResult> CreatePlanVersion(int objectId)
         {
-            try
-            {
-                var result = await _service.CreateWorkScheduleAsync(objectId);
-                return result.Success
-                    ? Ok(new { Message = result.Message, PlanId = result.PlanId })
-                    : BadRequest(new { Message = result.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { Message = $"Ошибка при создании графика работ: {ex.Message}" });
-            }
+            var result = await _service.CreateWorkScheduleAsync(objectId);
+            return result.Success
+                ? Ok(new
+                {
+                    PlanId = result.PlanId,
+                    Version = result.Version,
+                    Message = result.Message
+                })
+                : BadRequest(new { Message = result.Message });
         }
 
-        [HttpGet("work-schedules/{planId}")]
+        [HttpGet("objects/{objectId}/plans")]
+        public async Task<IActionResult> GetPlanVersions(int objectId)
+        {
+            var versions = await _service.GetPlanVersions(objectId);
+            return Ok(versions);
+        }
+
+        [HttpGet("plans/{planId}/structure")]
+        public async Task<IActionResult> GetPlanStructure(int planId)
+        {
+            var structure = await _service.GetPlanStructure(planId);
+            return structure != null
+                ? Ok(structure)
+                : NotFound(new { Message = "План не найден" });
+        }
+
+        [HttpPost("plans/{planId}/activate")]
+        public async Task<IActionResult> ActivatePlan(int planId)
+        {
+            var success = await _service.SetActivePlan(planId);
+            return success
+                ? Ok(new { Message = "План активирован" })
+                : BadRequest(new { Message = "Ошибка активации плана" });
+        }
+
+        [HttpGet("plans/{planId}")]
         public async Task<IActionResult> GetWorkSchedule(int planId)
         {
             try
@@ -103,7 +107,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpDelete("work-schedules/{planId}")]
+        [HttpDelete("plans/{planId}")]
         public async Task<IActionResult> DeleteWorkSchedule(int planId)
         {
             try
@@ -135,27 +139,22 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        
         [HttpGet("chapters/{id}")]
         public async Task<IActionResult> GetChapter(int id)
         {
             var chapter = await _service.GetChapterByIdAsync(id);
-            return chapter != null ? Ok(chapter) : NotFound();
+            return chapter != null
+                ? Ok(chapter)
+                : NotFound(new { Message = "Раздел не найден" });
         }
-        
 
-        [HttpPost("objects/chapters")]
-
+        [HttpPost("chapters")]
         public async Task<IActionResult> CreateChapter([FromBody] ChapterCreateRequest request)
         {
             try
             {
-                // Получаем objectId через сервис
-                int objectId = await _service.GetCurrentObjectIdAsync();
-
                 var chapter = new Chapter
                 {
-                    ObjectId = objectId,
                     Name = request.Name,
                     Number = request.Number
                 };
@@ -174,7 +173,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
                 return StatusCode(500, new { Message = ex.Message });
             }
         }
-
 
         [HttpPut("chapters/{id}")]
         public async Task<IActionResult> UpdateChapter(int id, [FromBody] ChapterUpdateRequest request)
@@ -229,7 +227,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         public async Task<IActionResult> GetSubchapter(int id)
         {
             var subchapter = await _service.GetSubchapterByIdAsync(id);
-            return subchapter != null ? Ok(subchapter) : NotFound();
+            return subchapter != null
+                ? Ok(subchapter)
+                : NotFound(new { Message = "Подраздел не найден" });
         }
 
         [HttpPost("subchapters")]
@@ -404,12 +404,10 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         public int Number { get; set; }
         public string EI { get; set; }
     }
-      
+
     public class WorkPlanCreateRequest
     {
         public DateTime Date { get; set; }
         public int Value { get; set; }
     }
-
-
 }
