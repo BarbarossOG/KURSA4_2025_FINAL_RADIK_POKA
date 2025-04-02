@@ -564,20 +564,17 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 var workType = await _context.WorkTypes
                     .Include(w => w.Subchapter)
                     .ThenInclude(s => s.Chapter)
+                    .Include(w => w.WorkPlans)
                     .FirstOrDefaultAsync(w => w.Id == workTypeId && w.Subchapter.Chapter.PlanId == planId);
 
                 if (workType == null)
                     return (false, "Вид работ не найден или не принадлежит текущему плану");
 
                 // Удаляем связанные планы работ
-                await _context.WorkPlans
-                    .Where(wp => wp.WorkTypeId == workTypeId)
-                    .ExecuteDeleteAsync();
+                _context.WorkPlans.RemoveRange(workType.WorkPlans);
 
                 // Удаляем сам вид работ
-                await _context.WorkTypes
-                    .Where(w => w.Id == workTypeId)
-                    .ExecuteDeleteAsync();
+                _context.WorkTypes.Remove(workType);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -666,25 +663,21 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                     return (false, "План заблокирован, удаление невозможно");
 
                 // Проверяем, что план работ принадлежит текущему плану через WorkType -> Subchapter -> Chapter -> Plan
-                var workPlanExists = await _context.WorkPlans
+                var workPlan = await _context.WorkPlans
                     .Include(wp => wp.WorkType)
                     .ThenInclude(wt => wt.Subchapter)
                     .ThenInclude(s => s.Chapter)
-                    .AnyAsync(wp => wp.Id == workPlanId && wp.WorkType.Subchapter.Chapter.PlanId == planId);
+                    .FirstOrDefaultAsync(wp => wp.Id == workPlanId && wp.WorkType.Subchapter.Chapter.PlanId == planId);
 
-                if (!workPlanExists)
+                if (workPlan == null)
                     return (false, "План работ не найден или не принадлежит текущему плану");
 
-                await _context.WorkPlans
-                    .Where(wp => wp.Id == workPlanId)
-                    .ExecuteDeleteAsync();
-
+                _context.WorkPlans.Remove(workPlan);
                 await _context.SaveChangesAsync();
                 return (true, "План работ успешно удален");
             }
             catch (Exception ex)
             {
-                // Логирование ошибки
                 return (false, $"Ошибка при удалении плана работ: {ex.Message}");
             }
         }
