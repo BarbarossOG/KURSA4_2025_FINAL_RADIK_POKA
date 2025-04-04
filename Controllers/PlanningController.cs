@@ -20,7 +20,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 
         #region Управление блокировкой
         [HttpPost("plans/{planId}/lock")]
-        [Tags("Управление блокировкой")]
+        [Tags("1 Управление блокировкой")]
         public async Task<IActionResult> LockPlan(int planId)
         {
             try
@@ -37,7 +37,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpPost("plans/{planId}/unlock")]
-        [Tags("Управление блокировкой")]
+        [Tags("1 Управление блокировкой")]
         public async Task<IActionResult> UnlockPlan(int planId)
         {
             try
@@ -54,7 +54,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpGet("plans/{planId}/lock-status")]
-        [Tags("Управление блокировкой")]
+        [Tags("1 Управление блокировкой")]
         public async Task<IActionResult> GetLockStatus(int planId)
         {
             try
@@ -81,7 +81,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
      
         #region Работа с версиями планов
         [HttpPost("plans")]
-        [Tags("Работа с планами")]
+        [Tags("2 Работа с планами")]
         public async Task<IActionResult> CreatePlanVersion([FromQuery] int objectId)
         {
             try
@@ -103,7 +103,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpGet("plans/all")]
-        [Tags("Работа с планами")]
+        [Tags("2 Работа с планами")]
         public async Task<IActionResult> GetAllPlans()
         {
             try
@@ -129,7 +129,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
         
         [HttpGet("plans/{planId}/structure")]
-        [Tags("Работа с планами")]
+        [Tags("2 Работа с планами")]
         public async Task<IActionResult> GetPlanStructure(int planId)
         {
             try
@@ -147,7 +147,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
        
 
         [HttpGet("plans/{planId}")]
-        [Tags("Работа с планами")]
+        [Tags("2 Работа с планами")]
         public async Task<IActionResult> GetWorkSchedule(int planId)
         {
             try
@@ -164,7 +164,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpDelete("plans/{planId}")]
-        [Tags("Работа с планами")]
+        [Tags("2 Работа с планами")]
         public async Task<IActionResult> DeleteWorkSchedule(int planId)
         {
             try
@@ -182,7 +182,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с разделами
-        [Tags("Работа с разделами")]
+        [Tags("3 Работа с разделами")]
         [HttpGet("plans/{planId}/chapters")]
         public async Task<IActionResult> GetAllChapters(int planId)
         {
@@ -216,7 +216,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         */
 
         [HttpPost("chapters")]
-        [Tags("Работа с разделами")]
+        [Tags("3 Работа с разделами")]
         public async Task<IActionResult> CreateChapter([FromBody] ChapterCreateRequest request)
         {
             try
@@ -244,7 +244,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 
 
         [HttpPut("chapters/{id}")]
-        [Tags("Работа с разделами")]
+        [Tags("3 Работа с разделами")]
         public async Task<IActionResult> UpdateChapter(int id, [FromBody] ChapterUpdateRequest request, [FromQuery] int planId)
         {
             try
@@ -267,7 +267,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpDelete("chapters/{id}")]
-        [Tags("Работа с разделами")]
+        [Tags("3 Работа с разделами")]
         public async Task<IActionResult> DeleteChapter(int id, [FromQuery] int planId)
         {
             try
@@ -284,7 +284,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpPost("plans/{planId}/chapters/reorder")]
-        [Tags("Работа с разделами")]
+        [Tags("3 Работа с разделами")]
         public async Task<IActionResult> ReorderChapters(int planId, [FromBody] List<int> newOrder)
         {
             try
@@ -302,8 +302,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с подразделами
-        [Tags("Работа с подразделами")]
         [HttpGet("chapters/{chapterId}/subchapters")]
+        [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> GetSubchapters(int chapterId)
         {
             try
@@ -323,7 +323,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpPost("subchapters")]
-        [Tags("Работа с подразделами")]
+        [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> CreateSubchapter([FromBody] SubchapterCreateRequest request)
         {
             try
@@ -344,7 +344,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpPut("subchapters/{id}")]
-        [Tags("Работа с подразделами")]
+        [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> UpdateSubchapter(int id, [FromBody] SubchapterUpdateRequest request, [FromQuery] int chapterId)
         {
             try
@@ -367,7 +367,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpDelete("subchapters/{id}")]
-        [Tags("Работа с подразделами")]
+        [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> DeleteSubchapter(int id, [FromQuery] int chapterId)
         {
             try
@@ -384,7 +384,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpPost("chapters/{chapterId}/subchapters/reorder")]
-        [Tags("Работа с подразделами")]
+        [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> ReorderSubchapters(int chapterId, [FromBody] List<int> newOrder)
         {
             try
@@ -401,7 +401,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
        
         [HttpPost("subchapters/{id}/move/{newChapterId}")]
-        [Tags("Работа с подразделами")]
+        [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> MoveSubchapter(int id, int newChapterId, [FromQuery] int planId)
         {
             try
@@ -420,7 +420,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 
         #region Работа с видами работ
         [HttpPost("work-types")]
-        [Tags("Работа с видами работ")]
+        [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> AddWorkType([FromBody] WorkTypeCreateRequest request)
         {
             try
@@ -448,7 +448,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpDelete("work-types/{workTypeId}")]
-        [Tags("Работа с видами работ")]
+        [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> DeleteWorkType(int workTypeId, [FromQuery] int planId)
         {
             try
@@ -467,7 +467,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
 
         #region Работа с планами работ
         [HttpPost("work-plans")]
-        [Tags("Работа с планами работ")]
+        [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> AddWorkPlan([FromBody] WorkPlanCreateRequest request)
         {
             try
@@ -494,7 +494,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
         [HttpDelete("work-plans/{workPlanId}")]
-        [Tags("Работа с планами работ")]
+        [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> DeleteWorkPlan(int workPlanId, [FromQuery] int planId)
         {
             try
@@ -512,7 +512,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         [HttpGet("plans/{planId}/report")]
-        [Tags("Создание отчёта")]
+        [Tags("6 Создание отчёта")]
         public async Task<IActionResult> GenerateReport(
             [FromRoute] int planId,
             [FromQuery] DateTime startDate,
