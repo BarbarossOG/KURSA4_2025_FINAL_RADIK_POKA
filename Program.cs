@@ -24,6 +24,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())

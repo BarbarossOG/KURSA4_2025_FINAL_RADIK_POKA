@@ -1,5 +1,6 @@
 ﻿using KURSA4_2025_FINAL_RADIK_POKA.Data;
 using KURSA4_2025_FINAL_RADIK_POKA.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace KURSA4_2025_FINAL_RADIK_POKA.Services
@@ -91,12 +92,11 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         public async Task<IEnumerable<GraphicPlanningOfWork>> GetAllPlansAsync()
         {
             return await _context.GraphicPlanningsOfWork
-                .Include(p => p.Object) // Включаем связанный объект
-                .OrderByDescending(p => p.CreationDate) // Сортируем по дате создания
+                .Include(p => p.Object)
+                .OrderByDescending(p => p.CreationDate)
                 .ToListAsync();
         }
-       
-        /*
+
         public async Task<IEnumerable<GraphicPlanningOfWork>> GetPlanVersions(int objectId)
         {
             return await _context.GraphicPlanningsOfWork
@@ -104,8 +104,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 .OrderByDescending(p => p.Version)
                 .ToListAsync();
         }
-        */
 
+    
         public async Task<PlanStructureDto> GetPlanStructure(int planId)
         {
             var plan = await _context.GraphicPlanningsOfWork
@@ -144,7 +144,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             };
         }
 
-
         public async Task<GraphicPlanningOfWork?> GetWorkScheduleByIdAsync(int planId)
         {
             return await _context.GraphicPlanningsOfWork
@@ -165,7 +164,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             try
             {
-                // Удаляем все связанные сущности
                 var chapters = await _context.Chapters
                     .Where(c => c.PlanId == planId)
                     .Include(c => c.Subchapters)
@@ -187,9 +185,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 }
                 _context.Chapters.RemoveRange(chapters);
 
-                // Удаляем сам план
                 _context.GraphicPlanningsOfWork.Remove(plan);
-
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -203,63 +199,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         }
         #endregion
 
-        #region Получение текущих ID
-        public async Task<int> GetCurrentPlanIdAsync(int? planId = null)
-        {
-            if (planId.HasValue)
-                return planId.Value;
-
-            var plan = await _context.GraphicPlanningsOfWork
-                .Where(p => p.Status == "Редактируется")
-                .OrderByDescending(p => p.Id)
-                .FirstOrDefaultAsync();
-
-            return plan?.Id ?? throw new Exception("Не найден активный план");
-        }
-
-        public async Task<int> GetCurrentChapterIdAsync(int? chapterId = null)
-        {
-            if (chapterId.HasValue)
-                return chapterId.Value;
-
-            int planId = await GetCurrentPlanIdAsync();
-            var chapter = await _context.Chapters
-                .Where(c => c.PlanId == planId)
-                .OrderByDescending(c => c.Id)
-                .FirstOrDefaultAsync();
-
-            return chapter?.Id ?? throw new Exception("Не найден активный раздел");
-        }
-
-        public async Task<int> GetCurrentSubchapterIdAsync(int? subchapterId = null, int? chapterId = null)
-        {
-            if (subchapterId.HasValue)
-                return subchapterId.Value;
-
-            int currentChapterId = await GetCurrentChapterIdAsync(chapterId);
-            var subchapter = await _context.Subchapters
-                .Where(s => s.ChapterId == currentChapterId)
-                .OrderByDescending(s => s.Id)
-                .FirstOrDefaultAsync();
-
-            return subchapter?.Id ?? throw new Exception("Не найден активный подраздел");
-        }
-
-        public async Task<int> GetCurrentWorkTypeIdAsync(int subchapterId)
-        {
-            var workType = await _context.WorkTypes
-                .Where(w => w.SubchapterId == subchapterId)
-                .OrderByDescending(w => w.Id)
-                .FirstOrDefaultAsync();
-
-            return workType?.Id ?? throw new Exception("Не найден активный вид работ");
-        }
-        #endregion
-
         #region Работа с разделами
-        public async Task<IEnumerable<Chapter>> GetAllChaptersAsync()
+        public async Task<IEnumerable<Chapter>> GetAllChaptersAsync(int planId)
         {
-            int planId = await GetCurrentPlanIdAsync();
             return await _context.Chapters
                 .Where(c => c.PlanId == planId)
                 .OrderBy(c => c.Number)
@@ -273,9 +215,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        public async Task<(bool Success, string Message)> AddChapterAsync(Chapter chapter)
+        public async Task<(bool Success, string Message)> AddChapterAsync(Chapter chapter, int planId)
         {
-            int planId = await GetCurrentPlanIdAsync();
             var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
 
             if (plan == null || plan.Status == "Заблокирован")
@@ -295,15 +236,14 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             }
         }
 
-        public async Task<bool> UpdateChapterAsync(int id, Chapter updatedChapter)
+        public async Task<bool> UpdateChapterAsync(int id, Chapter updatedChapter, int planId)
         {
-            int planId = await GetCurrentPlanIdAsync();
             var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
 
             if (plan == null || plan.Status == "Заблокирован")
                 return false;
 
-            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == id);
+            var chapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == id && c.PlanId == planId);
             if (chapter == null) return false;
 
             chapter.Name = updatedChapter.Name;
@@ -312,9 +252,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             return true;
         }
 
-        public async Task<bool> DeleteChapterAsync(int id)
+        public async Task<bool> DeleteChapterAsync(int id, int planId)
         {
-            int planId = await GetCurrentPlanIdAsync();
             var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
 
             if (plan == null || plan.Status == "Заблокирован")
@@ -322,7 +261,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
             var chapter = await _context.Chapters
                 .Include(c => c.Subchapters)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && c.PlanId == planId);
 
             if (chapter == null) return false;
 
@@ -331,9 +270,8 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             return true;
         }
 
-        public async Task<(bool Success, string Message)> ReorderChaptersAsync(List<int> newOrder)
+        public async Task<(bool Success, string Message)> ReorderChaptersAsync(int planId, List<int> newOrder)
         {
-            int planId = await GetCurrentPlanIdAsync();
             var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
 
             if (plan == null || plan.Status == "Заблокирован")
@@ -360,19 +298,6 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         #endregion
 
         #region Работа с подразделами
-
-        public async Task<IEnumerable<Subchapter>> GetAllSubchaptersAsync()
-        {
-            int planId = await GetCurrentPlanIdAsync();
-
-            return await _context.Subchapters
-                .Where(s => s.Chapter.PlanId == planId) // Фильтруем по PlanId через связь с Chapter
-                .Include(s => s.Chapter) // Включаем информацию о разделе
-                .OrderBy(s => s.Number)  // Сортируем по номеру
-                .ToListAsync();
-        }
-
-        /*
         public async Task<IEnumerable<Subchapter>> GetSubchaptersByChapterAsync(int chapterId)
         {
             return await _context.Subchapters
@@ -381,24 +306,17 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                 .ToListAsync();
         }
 
-        public async Task<Subchapter?> GetSubchapterByIdAsync(int id)
-        {
-            return await _context.Subchapters
-                .Include(s => s.Chapter)
-                .FirstOrDefaultAsync(s => s.Id == id);
-        }*/
-
-        public async Task<(bool Success, string Message, Subchapter Subchapter)> AddSubchapterAsync(string name, int number)
+        public async Task<(bool Success, string Message, Subchapter Subchapter)> AddSubchapterAsync(string name, int number, int chapterId)
         {
             try
             {
-                int planId = await GetCurrentPlanIdAsync();
-                var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
+                var chapter = await _context.Chapters
+                    .Include(c => c.Plan)
+                    .FirstOrDefaultAsync(c => c.Id == chapterId);
 
-                if (plan == null || plan.Status == "Заблокирован")
-                    return (false, "План заблокирован или не найден", null);
+                if (chapter == null || chapter.Plan.Status == "Заблокирован")
+                    return (false, "Раздел не найден или план заблокирован", null);
 
-                int chapterId = await GetCurrentChapterIdAsync();
                 var subchapter = new Subchapter
                 {
                     ChapterId = chapterId,
@@ -417,15 +335,18 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             }
         }
 
-        public async Task<bool> UpdateSubchapterAsync(int id, Subchapter updatedSubchapter)
+        public async Task<bool> UpdateSubchapterAsync(int id, Subchapter updatedSubchapter, int chapterId)
         {
-            int planId = await GetCurrentPlanIdAsync();
-            var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
+            var chapter = await _context.Chapters
+                .Include(c => c.Plan)
+                .FirstOrDefaultAsync(c => c.Id == chapterId);
 
-            if (plan == null || plan.Status == "Заблокирован")
+            if (chapter == null || chapter.Plan.Status == "Заблокирован")
                 return false;
 
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == id);
+            var subchapter = await _context.Subchapters
+                .FirstOrDefaultAsync(s => s.Id == id && s.ChapterId == chapterId);
+
             if (subchapter == null) return false;
 
             subchapter.Name = updatedSubchapter.Name;
@@ -434,15 +355,18 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             return true;
         }
 
-        public async Task<bool> DeleteSubchapterAsync(int id)
+        public async Task<bool> DeleteSubchapterAsync(int id, int chapterId)
         {
-            int planId = await GetCurrentPlanIdAsync();
-            var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
+            var chapter = await _context.Chapters
+                .Include(c => c.Plan)
+                .FirstOrDefaultAsync(c => c.Id == chapterId);
 
-            if (plan == null || plan.Status == "Заблокирован")
+            if (chapter == null || chapter.Plan.Status == "Заблокирован")
                 return false;
 
-            var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == id);
+            var subchapter = await _context.Subchapters
+                .FirstOrDefaultAsync(s => s.Id == id && s.ChapterId == chapterId);
+
             if (subchapter == null) return false;
 
             _context.Subchapters.Remove(subchapter);
@@ -452,11 +376,12 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
 
         public async Task<(bool Success, string Message)> ReorderSubchaptersAsync(int chapterId, List<int> newOrder)
         {
-            int planId = await GetCurrentPlanIdAsync();
-            var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
+            var chapter = await _context.Chapters
+                .Include(c => c.Plan)
+                .FirstOrDefaultAsync(c => c.Id == chapterId);
 
-            if (plan == null || plan.Status == "Заблокирован")
-                return (false, "План заблокирован или не найден");
+            if (chapter == null || chapter.Plan.Status == "Заблокирован")
+                return (false, "Раздел не найден или план заблокирован");
 
             var subchapters = await _context.Subchapters
                 .Where(s => s.ChapterId == chapterId)
@@ -477,22 +402,17 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             return (true, "Подразделы успешно переупорядочены");
         }
 
-        public async Task<bool> MoveSubchapterAsync(int subchapterId, int newChapterId)
+        public async Task<bool> MoveSubchapterAsync(int subchapterId, int newChapterId, int planId)
         {
-            int planId = await GetCurrentPlanIdAsync();
             var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
-
             if (plan == null || plan.Status == "Заблокирован")
                 return false;
 
             var subchapter = await _context.Subchapters.FirstOrDefaultAsync(s => s.Id == subchapterId);
             if (subchapter == null) return false;
 
-            var newChapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == newChapterId);
+            var newChapter = await _context.Chapters.FirstOrDefaultAsync(c => c.Id == newChapterId && c.PlanId == planId);
             if (newChapter == null) return false;
-
-            if (newChapter.PlanId != planId)
-                return false;
 
             subchapter.ChapterId = newChapterId;
             subchapter.Number = await _context.Subchapters
@@ -505,30 +425,21 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         #endregion
 
         #region Работа с видами работ
-        public async Task<(bool Success, string Message, WorkType WorkType)> AddWorkTypeAsync(string name, int number, string ei, int? subchapterId = null)
+        public async Task<(bool Success, string Message, WorkType WorkType)> AddWorkTypeAsync(string name, int number, string ei, int subchapterId)
         {
             try
             {
-                int planId = await GetCurrentPlanIdAsync();
-                var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
-
-                if (plan == null || plan.Status == "Заблокирован")
-                    return (false, "План заблокирован или не найден", null);
-
-                int currentChapterId = await GetCurrentChapterIdAsync();
-                int currentSubchapterId = subchapterId ?? await GetCurrentSubchapterIdAsync(null, currentChapterId);
-
-                // Проверяем, что подраздел существует и принадлежит текущему плану
                 var subchapter = await _context.Subchapters
                     .Include(s => s.Chapter)
-                    .FirstOrDefaultAsync(s => s.Id == currentSubchapterId && s.Chapter.PlanId == planId);
+                    .ThenInclude(c => c.Plan)
+                    .FirstOrDefaultAsync(s => s.Id == subchapterId);
 
-                if (subchapter == null)
-                    return (false, "Подраздел не найден или не принадлежит текущему плану", null);
+                if (subchapter == null || subchapter.Chapter.Plan.Status == "Заблокирован")
+                    return (false, "Подраздел не найден или план заблокирован", null);
 
                 var workType = new WorkType
                 {
-                    SubchapterId = currentSubchapterId,
+                    SubchapterId = subchapterId,
                     Name = name,
                     Number = number,
                     EI = ei,
@@ -545,22 +456,19 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             }
         }
 
-        public async Task<(bool Success, string Message)> DeleteWorkTypeAsync(int workTypeId)
+        public async Task<(bool Success, string Message)> DeleteWorkTypeAsync(int workTypeId, int planId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                int planId = await GetCurrentPlanIdAsync();
                 var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
-
                 if (plan == null)
                     return (false, "План не найден");
 
                 if (plan.Status == "Заблокирован")
                     return (false, "План заблокирован, удаление невозможно");
 
-                // Проверяем, что вид работ принадлежит текущему плану
                 var workType = await _context.WorkTypes
                     .Include(w => w.Subchapter)
                     .ThenInclude(s => s.Chapter)
@@ -568,14 +476,10 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                     .FirstOrDefaultAsync(w => w.Id == workTypeId && w.Subchapter.Chapter.PlanId == planId);
 
                 if (workType == null)
-                    return (false, "Вид работ не найден или не принадлежит текущему плану");
+                    return (false, "Вид работ не найден или не принадлежит указанному плану");
 
-                // Удаляем связанные планы работ
                 _context.WorkPlans.RemoveRange(workType.WorkPlans);
-
-                // Удаляем сам вид работ
                 _context.WorkTypes.Remove(workType);
-
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -590,50 +494,22 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
         #endregion
 
         #region Работа с планами работ
-        public async Task<(bool Success, string Message, WorkPlan WorkPlan)> AddWorkPlanAsync(DateTime date, int value, int? workTypeId = null)
+        public async Task<(bool Success, string Message, WorkPlan WorkPlan)> AddWorkPlanAsync(DateTime date, int value, int workTypeId)
         {
             try
             {
-                int planId = await GetCurrentPlanIdAsync();
-                var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
-
-                if (plan == null || plan.Status == "Заблокирован")
-                    return (false, "План заблокирован или не найден", null);
-
-                // Получаем workTypeId явно или находим последний созданный для текущего подраздела
-                int currentWorkTypeId;
-                if (workTypeId.HasValue)
-                {
-                    currentWorkTypeId = workTypeId.Value;
-                }
-                else
-                {
-                    int chapterId = await GetCurrentChapterIdAsync();
-                    int subchapterId = await GetCurrentSubchapterIdAsync(null, chapterId);
-
-                    var workType = await _context.WorkTypes
-                        .Where(w => w.SubchapterId == subchapterId)
-                        .OrderByDescending(w => w.Id)
-                        .FirstOrDefaultAsync();
-
-                    if (workType == null)
-                        return (false, "Не найден вид работ для добавления плана", null);
-
-                    currentWorkTypeId = workType.Id;
-                }
-
-                // Проверяем, что вид работ существует и принадлежит текущему плану
-                var workTypeExists = await _context.WorkTypes
+                var workType = await _context.WorkTypes
                     .Include(w => w.Subchapter)
                     .ThenInclude(s => s.Chapter)
-                    .AnyAsync(w => w.Id == currentWorkTypeId && w.Subchapter.Chapter.PlanId == planId);
+                    .ThenInclude(c => c.Plan)
+                    .FirstOrDefaultAsync(w => w.Id == workTypeId);
 
-                if (!workTypeExists)
-                    return (false, "Указанный вид работ не найден или не принадлежит текущему плану", null);
+                if (workType == null || workType.Subchapter.Chapter.Plan.Status == "Заблокирован")
+                    return (false, "Вид работ не найден или план заблокирован", null);
 
                 var workPlan = new WorkPlan
                 {
-                    WorkTypeId = currentWorkTypeId,
+                    WorkTypeId = workTypeId,
                     Date = date,
                     Value = value,
                     Id = await _context.WorkPlans.MaxAsync(wp => (int?)wp.Id) + 1 ?? 1
@@ -649,20 +525,17 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             }
         }
 
-        public async Task<(bool Success, string Message)> DeleteWorkPlanAsync(int workPlanId)
+        public async Task<(bool Success, string Message)> DeleteWorkPlanAsync(int workPlanId, int planId)
         {
             try
             {
-                int planId = await GetCurrentPlanIdAsync();
                 var plan = await _context.GraphicPlanningsOfWork.FindAsync(planId);
-
                 if (plan == null)
                     return (false, "План не найден");
 
                 if (plan.Status == "Заблокирован")
                     return (false, "План заблокирован, удаление невозможно");
 
-                // Проверяем, что план работ принадлежит текущему плану через WorkType -> Subchapter -> Chapter -> Plan
                 var workPlan = await _context.WorkPlans
                     .Include(wp => wp.WorkType)
                     .ThenInclude(wt => wt.Subchapter)
@@ -670,7 +543,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
                     .FirstOrDefaultAsync(wp => wp.Id == workPlanId && wp.WorkType.Subchapter.Chapter.PlanId == planId);
 
                 if (workPlan == null)
-                    return (false, "План работ не найден или не принадлежит текущему плану");
+                    return (false, "План работ не найден или не принадлежит указанному плану");
 
                 _context.WorkPlans.Remove(workPlan);
                 await _context.SaveChangesAsync();
@@ -682,14 +555,13 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Services
             }
         }
         #endregion
-    }
-
-    public class PlanStructureDto
+        public class PlanStructureDto
     {
         public GraphicPlanningOfWork Plan { get; set; }
         public IEnumerable<Chapter> Chapters { get; set; }
         public IEnumerable<Subchapter> Subchapters { get; set; }
         public IEnumerable<WorkType> WorkTypes { get; set; }
         public IEnumerable<WorkPlan> WorkPlans { get; set; }
+    }
     }
 }
