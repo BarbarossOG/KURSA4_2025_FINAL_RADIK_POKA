@@ -102,7 +102,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpGet("plans/all")]
+        [HttpGet("plans")]
         [Tags("2 Работа с планами")]
         public async Task<IActionResult> GetAllPlans()
         {
@@ -215,7 +215,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
         */
 
-        [HttpPost("chapters")]
+        [HttpPost("plans/chapters")]
         [Tags("3 Работа с разделами")]
         public async Task<IActionResult> CreateChapter([FromBody] ChapterCreateRequest request)
         {
@@ -243,7 +243,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
 
-        [HttpPut("chapters/{id}")]
+        [HttpPut("plans/chapters/{id}")]
         [Tags("3 Работа с разделами")]
         public async Task<IActionResult> UpdateChapter(int id, [FromBody] ChapterUpdateRequest request, [FromQuery] int planId)
         {
@@ -266,7 +266,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpDelete("chapters/{id}")]
+        [HttpDelete("plans/chapters/{id}")]
         [Tags("3 Работа с разделами")]
         public async Task<IActionResult> DeleteChapter(int id, [FromQuery] int planId)
         {
@@ -302,7 +302,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с подразделами
-        [HttpGet("chapters/{chapterId}/subchapters")]
+        [HttpGet("plans/chapters/{chapterId}/subchapters")]
         [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> GetSubchapters(int chapterId)
         {
@@ -322,7 +322,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpPost("subchapters")]
+        [HttpPost("plans/charters/subchapters")]
         [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> CreateSubchapter([FromBody] SubchapterCreateRequest request)
         {
@@ -343,7 +343,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpPut("subchapters/{id}")]
+        [HttpPut("plans/charters/subchapters/{id}")]
         [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> UpdateSubchapter(int id, [FromBody] SubchapterUpdateRequest request, [FromQuery] int chapterId)
         {
@@ -366,7 +366,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpDelete("subchapters/{id}")]
+        [HttpDelete("plans/charters/subchapters/{id}")]
         [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> DeleteSubchapter(int id, [FromQuery] int chapterId)
         {
@@ -383,7 +383,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpPost("chapters/{chapterId}/subchapters/reorder")]
+        [HttpPost("plans/chapters/{chapterId}/subchapters/reorder")]
         [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> ReorderSubchapters(int chapterId, [FromBody] List<int> newOrder)
         {
@@ -400,7 +400,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
        
-        [HttpPost("subchapters/{id}/move/{newChapterId}")]
+        [HttpPost("plans/charters/subchapters/{id}/move/{newChapterId}")]
         [Tags("4 Работа с подразделами")]
         public async Task<IActionResult> MoveSubchapter(int id, int newChapterId, [FromQuery] int planId)
         {
@@ -419,7 +419,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с видами работ
-        [HttpPost("work-types")]
+        [HttpPost("plans/charters/subcharter/work-types")]
         [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> AddWorkType([FromBody] WorkTypeCreateRequest request)
         {
@@ -447,7 +447,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpDelete("work-types/{workTypeId}")]
+        [HttpDelete("plans/charters/subcharter/work-types/{workTypeId}")]
         [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> DeleteWorkType(int workTypeId, [FromQuery] int planId)
         {
@@ -466,7 +466,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         #endregion
 
         #region Работа с планами работ
-        [HttpPost("work-plans")]
+        [HttpPost("plans/charters/subcharter/work-types/work-plans")]
         [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> AddWorkPlan([FromBody] WorkPlanCreateRequest request)
         {
@@ -493,7 +493,7 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpDelete("work-plans/{workPlanId}")]
+        [HttpDelete("plans/charters/subcharter/work-types/work-plans/{workPlanId}")]
         [Tags("5 Работа с видами и планами работ")]
         public async Task<IActionResult> DeleteWorkPlan(int workPlanId, [FromQuery] int planId)
         {
