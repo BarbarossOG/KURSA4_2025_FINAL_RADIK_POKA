@@ -243,9 +243,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
         }
 
 
-        [HttpPut("plans/chapters/{id}")]
+        [HttpPut("plans/{planId}/chapters/{id}")]
         [Tags("3 Работа с разделами")]
-        public async Task<IActionResult> UpdateChapter(int id, [FromBody] ChapterUpdateRequest request, [FromQuery] int planId)
+        public async Task<IActionResult> UpdateChapter(int id, [FromBody] ChapterUpdateRequest request, int planId)
         {
             try
             {
@@ -266,9 +266,9 @@ namespace KURSA4_2025_FINAL_RADIK_POKA.Controllers
             }
         }
 
-        [HttpDelete("plans/chapters/{id}")]
+        [HttpDelete("plans/{planId}/chapters/{id}")]
         [Tags("3 Работа с разделами")]
-        public async Task<IActionResult> DeleteChapter(int id, [FromQuery] int planId)
+        public async Task<IActionResult> DeleteChapter(int id, int planId)
         {
             try
             {
